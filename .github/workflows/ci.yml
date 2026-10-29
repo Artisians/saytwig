@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, nightly, stable]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: 2
+  RUST_BACKTRACE: 1
+  RUSTUP_TOOLCHAIN: 1.99.1
+
+jobs:
+  source:
+    name: Rust formatting
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13.16"
+      - name: Install pinned Rust tools
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
+      - name: Format
+        run: python3 scripts/checks/run.py format
+
+  native:
+    name: Native Rust (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13.16"
+      - name: Linux GPUI, audio, and clipboard build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config clang cmake libasound2-dev libfontconfig-dev libfreetype-dev libssl-dev libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libxcb1-dev libvulkan-dev libzstd-dev libglib2.0-dev
+      - name: Install pinned Rust tools
+        run: rustup toolchain install 1.99.1 --profile minimal --component clippy
+      - name: Workspace Clippy and native app link
+        run: python scripts/checks/run.py rust

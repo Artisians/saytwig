@@ -1,0 +1,34 @@
+[workspace]
+resolver = "2"
+members = ["crates/domain", "crates/audio", "crates/phonon", "crates/cleanup", "crates/app", "crates/desktop", "crates/account", "crates/updates"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+log = "0.4"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev]
+debug = 1
+
+# Selected BeautifulRust safety/maintenance checks; not the full restriction group.
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+unwrap_used = "warn"
+undocumented_unsafe_blocks = "warn"
+await_holding_lock = "warn"

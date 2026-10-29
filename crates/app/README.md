@@ -1,0 +1,113 @@
+# Saytwig native app
+
+Newly authored Rust application using GPUI Kit 0.8.1 and its exact GPUI pre-0.3.10
+stack. Only `component` and `assets` features are enabled. No webview, JavaScript
+extension shell, editor features, or old Handy implementation is copied into this
+crate. Impeccable's owner-approved compact black concept informed the interface;
+concept PNGs are not screenshots of this native application.
+
+## Run on a supported desktop
+
+```sh
+cargo run -p dictation-app --bin saytwig
+```
+
+Linux requires a native X11 or Wayland session and the GPUI platform libraries.
+The application reports a clean failure before platform initialization when neither
+`DISPLAY` nor `WAYLAND_DISPLAY` is present. These variables are not interpreted as
+proof of device permission or successful rendering.
+
+A development runtime uses these explicit configuration values:
+
+- `SAYTWIG_RUNTIME_DIR`: reviewed bundle containing `bundle.json`, `bridge.py`, and
+  the platform Python runtime.
+- `SAYTWIG_RUNTIME_SHA256`: independently trusted release digest for `bundle.json`.
+  Never derive trust by hashing the adjacent mutable file automatically.
+- `SAYTWIG_MODEL_STORE`: optional model store root, containing `phonon-2.5-en`.
+- `SAYTWIG_DATA_DIR`: optional new Saytwig settings/history directory. Default is
+  the platform's user data location, scoped to Saytwig. No legacy data is imported.
+
+All integrity checking, installation, microphone enumeration/capture, inference,
+and history/settings persistence run off the UI thread. Missing or invalid assets
+are shown explicitly. The model download requires the **Download English model**
+button; constructing the app never downloads a model or opens a microphone.
+
+## Actual flows
+
+- Start / finish / cancel local dictation, with a two-minute recording cap.
+- Explicit global-shortcut registration/rebinding on the GPUI event-loop thread;
+  a successful saved registration is restored on the next launch. Failure does
+  not masquerade as an enabled shortcut. In-window Escape cancels dictation.
+- A small non-focusing status popup uses actual session phases. It has no fake
+  amplitude waveform, speed, accuracy score, or timer. OS focus behavior still
+  requires real-platform inspection before release.
+- Explicit copy uses a dedicated clipboard owner, not the potentially blocked
+  inference actor. Queue capacity is one, requests expire after two seconds,
+  superseded requests are invalidated, and shutdown suppresses queued writes.
+  An OS clipboard write already in progress cannot be undone by cancellation.
+  Windows global-shortcut dictation captures the external foreground window/PID
+  before showing the overlay and attempts one guarded paste of the final local or
+  explicitly opted-in cleaned result. Manual in-app Start is Copy-only; unsupported
+  platforms, missing targets, changed focus, held modifiers or errors retain the
+  result for explicit Copy. Saytwig never focuses a target or pastes into itself.
+  Paste keeps the new text on the clipboard; it does not read/restore prior content.
+  A receipt means input dispatched, not proof that the receiving app inserted text.
+  Failed/partial dispatch is never automatically retried: check the target before
+  copying to avoid duplicate insertion.
+- History keeps original and cleaned text separately. No audio recordings are
+  persisted by the app. There is no implicit retention deletion.
+- Microphone selection, vocabulary hints, and shortcut preferences are persisted
+  with revision guards. Malformed/newer data disables writes rather than replacing
+  existing bytes. Save acknowledgement comes from the background write result.
+- ChatGPT accounts are opened only after an explicit account action. Sign-in
+  authorization is passed directly to the OS browser, never exposed in UI text or
+  logs. Connect/continue/activate/sign-out and model loading are cancellable where
+  the account API supports it. No existing application credentials are imported.
+- Transcript sharing is a separate, default-off consent action after connecting
+  an eligible account and choosing one of its models. Catalogs and requests are
+  tied to the active profile identity; the bearer identity is checked immediately
+  before cleanup. Account switching/revocation or failure retains original text.
+  No API-key or billing fallback exists.
+
+## Ownership and cancellation
+
+Local session events carry `Generation`. Cloud commands and terminal events also
+carry monotonic request identities. A stale completion cannot clear a newer
+cancellation handle, mutate the current account controls, or replace its result.
+Microphone cancellation has its own nonblocking generation-owned handle so a slow
+filesystem or device-enumeration operation cannot delay stopping active capture.
+The UI cancels an already-stale Recording event's handle immediately. Quit cancels
+active audio, model, cloud and clipboard work and requests owned-thread shutdown.
+Each shortcut dictation owns a fresh delivery gate armed before sharing with the
+clipboard worker. Final output carries the same session generation. New dictation,
+explicit Copy, cancellation and quit permanently revoke that gate without blocking
+GPUI on the native clipboard. Revocation rejects effects that have not entered their
+commit; an already-entered OS commit may finish and dispatched input cannot be
+recalled. Focus is checked again by the native adapter at dispatch, but Windows
+SendInput cannot atomically target an HWND: physical focus changes can still race.
+No claim of guaranteed targeting or delivery is made.
+
+## Guidance and verification
+
+BeautifulRust official source was read at commit
+`f92961282b83e11757f076e787b4725b38d07b56`: application-shaped concrete APIs,
+message-passing ownership, `Result` at failure boundaries, minimal dependencies,
+private fields, safe code, and format/lint review. Local AGENTS.md overrides its
+generic test commands: **no automated tests or test scaffolding**.
+
+Allowed checks:
+
+```sh
+cargo fmt --all -- --check
+CARGO_BUILD_WARNINGS=deny cargo clippy --workspace --lib --bins -- -D warnings
+cargo build -p dictation-app --bin saytwig
+```
+
+The build execution sandbox has no display, and its permitted Xvfb launch cannot
+bind listening sockets. A separate supported cloud Linux desktop has since been
+identified; application access there is still being established.
+Compilation/linting and source review do not establish physical microphone behavior,
+OS permission prompts, keyboard navigation, screen-reader behavior, native rendering,
+or end-to-end account consent. Those are real-app inspection gates, not claims of
+completed validation. No actual account grant or transcript cleanup was performed
+while building this interface.

@@ -1,0 +1,18 @@
+[package]
+name = "dictation-audio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["microphone"]
+microphone = ["dep:cpal"]
+
+[dependencies]
+thiserror.workspace = true
+rubato = "0.16.2"
+cpal = { version = "0.16.0", optional = true }
+
+[lints]
+workspace = true

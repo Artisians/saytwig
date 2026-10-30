@@ -1,7 +1,8 @@
 # BeautifulRust source
 
 Upstream: https://github.com/morganlinton/BeautifulRust
-Pinned commit: f92961282b83e11757f076e787b4725b38d07b56
+Release: v1.5.0
+Pinned commit: 40db61c6fee84bd121cf288755f0e2f22a50e995
 Copyright (c) 2026 Morgan Linton; MIT license retained alongside this file.
 
 The rust-best-practices and rust-review skill documents/references are copied

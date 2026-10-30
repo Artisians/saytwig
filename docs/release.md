@@ -2,11 +2,10 @@
 
 ## Current state: unreleased development build
 
-Saytwig is newly authored, not a shipped version of the previous Handy fork.
-The new standalone `Artisians/saytwig` repository has been created and verified.
-Initial source publication proceeds through a draft PR and review gates. Leave
-the old repository unchanged: earlier reset/rename plans are superseded. Do not
-redirect update checks to the old repository or advertise an installer as ready.
+Saytwig source lives in `Artisians/saytwig`. Nightly publication requires
+same-source app-only artifacts and the review gates below. Installers and
+automatic update installation are not ready. Stable promotion is a separate
+reviewed action.
 No signing credential is created, no release is published, and no remote setting
 is changed by any script or workflow in this tree.
 
@@ -68,9 +67,9 @@ commands. Rustfmt is the formatter for GPUI's Rust source too.
 Reserve **`saytwig-vX.Y.Z`** for freshly authored Saytwig releases, for example
 `saytwig-v0.1.0`. A prerelease may use `saytwig-v0.1.0-rc.1`, but the current
 stable-only checker does not offer prereleases. Do not use a bare `vX.Y.Z` tag for
-new Saytwig builds. The app-specific namespace prevents a legacy or unrelated tag
+new Saytwig builds. The app-specific namespace prevents an unrelated tag
 from being mistaken for this app; repository ownership and a higher version alone
-do not establish that identity. The old Handy repository is left unchanged.
+do not establish that identity.
 No existing tags/releases are deleted or relabeled by this convention.
 
 ## Update-check trust boundary

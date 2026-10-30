@@ -22,14 +22,6 @@ Apache-2.0 projects. Build tooling must collect the actual dependency license
 texts for distributed artifacts; this short summary is not a replacement for
 those texts. Optional components must be audited before being enabled.
 
-## Project origin
-
-Handy by cjpais and its contributors inspired the original dictation workflow.
-The new Saytwig source tree does not intentionally copy Handy implementation.
-If Handy code is later reused, preserve its MIT copyright/license with that code
-and describe the derivation accurately. Historical GitHub fork metadata is not a
-license declaration and a history rewrite does not erase third-party obligations.
-
 ## Development guidance
 
 The pinned BeautifulRust best-practices/review skills by Morgan Linton are retained

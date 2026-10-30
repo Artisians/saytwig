@@ -82,9 +82,6 @@ PyTorch. Model weights are not embedded in the executable.
 
 ## Built with credit
 
-[Handy](https://github.com/cjpais/Handy) and its contributors inspired Saytwig's
-speech-to-text workflow.
-
 The native interface uses [GPUI](https://gpui.rs/) and GPUI Kit. Speech recognition
 uses Fermion Research and **Phonon 2.5 English**, derived from **NVIDIA Parakeet**.
 Design work uses [Impeccable](https://github.com/pbakaus/impeccable).

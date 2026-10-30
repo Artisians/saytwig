@@ -1,9 +1,9 @@
 # Engineering rules
 
-- This is a newly authored Rust + GPUI application. Do not copy implementation from the previous Handy fork or describe derivative code as clean-room original.
+- Saytwig is a Rust + GPUI application. Preserve third-party licenses and accurate attribution for reused code.
 - Keep speech recognition local. Network cleanup is separate, explicitly opt-in, and must retain the original transcript on error. Never log recordings, transcripts, credentials, or provider response bodies.
 - Own child processes; bind only loopback; verify process identity before sending audio. Verify immutable model/runtime hashes before use.
-- Latest owner decision: create a new standalone Artisians/saytwig repository. Leave Artisians/handy-phonon2 unchanged; earlier reset/rename instructions are superseded. The parent coordinates authorized creation/publication and verifies remote readback. Do not reset, rename, force-push, broaden access, or create signing credentials. App name is Saytwig.
+- Work only in Artisians/saytwig. Verify remote source and deployment identity after authorized publication. Do not reset, rename, force-push, broaden access, or create signing credentials. App name is Saytwig.
 - User data deletion is never implicit. Keep config/history parsing versioned and non-destructive.
 - OWNER REQUIREMENT: Do not create, add, or run automated tests, test suites, test targets, test scaffolding, or test workflow steps unless the owner explicitly asks to change this policy. This applies to all delegated agents. Do not ship newly generated test scaffolding.
 - The owner explicitly wants agent-driven hands-on QA of the real application: exercise actual flows, inspect results, and fix failures. This is different from creating automated test files/suites. Use supported cloud application/GUI routes only; do not bypass sandbox restrictions or use T3/the user’s computer.

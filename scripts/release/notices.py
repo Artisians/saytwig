@@ -26,7 +26,7 @@ def digest(data):
 
 
 def run(args):
-    return subprocess.run(args, cwd=ROOT, check=True, capture_output=True, text=True,
+    return subprocess.run(args, cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8",
                           timeout=600).stdout
 
 
@@ -345,7 +345,7 @@ def generate(args):
         "cargo-about", "generate", "--manifest-path", "Cargo.toml", "--workspace",
         "--config", str(config_path), "--locked", "--fail", "--offline",
         "--target", args.target, *feature_args(features), "--format", "json",
-    ], cwd=ROOT, capture_output=True, text=True,
+    ], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
         env={**os.environ, "RAYON_NUM_THREADS": "2"}, timeout=600)
     # Retain diagnostics for reviewers, not for license text substitution.
     (output / "HARVEST-DIAGNOSTICS.txt").write_text(about.stderr, encoding="utf-8")

@@ -1,9 +1,7 @@
 # Saytwig native app
 
-Newly authored Rust application using GPUI Kit 0.8.1 and its exact GPUI pre-0.3.10
-stack. Only `component` and `assets` features are enabled. No webview, JavaScript
-extension shell, editor features, or old Handy implementation is copied into this
-crate. Impeccable's owner-approved compact black concept informed the interface;
+Rust application using GPUI Kit 0.8.1 and its exact GPUI pre-0.3.10
+stack. Only `component` and `assets` features are enabled. Impeccable's owner-approved compact black concept informed the interface;
 concept PNGs are not screenshots of this native application.
 
 ## Native development launch

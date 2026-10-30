@@ -8,8 +8,7 @@ Copyright (c) 2026 Morgan Linton; MIT license retained alongside this file.
 The rust-best-practices and rust-review skill documents/references are copied
 unchanged. Upstream evaluation fixtures and test scaffolding are intentionally
 omitted under the owner’s no-suite policy.
-They are development guidance, not runtime dependencies. rust-port is not used:
-Saytwig is newly authored, not a line-by-line port of Handy.
+They are development guidance, not runtime dependencies.
 
 **Project overrides:** Root AGENTS.md and current owner instructions take
 precedence. In particular, do not follow upstream instructions to create/run

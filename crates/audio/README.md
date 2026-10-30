@@ -1,7 +1,6 @@
 # dictation-audio
 
-Newly authored microphone capture and PCM normalization for the native app.
-No legacy Handy implementation is imported or copied.
+Microphone capture and PCM normalization for the native app.
 
 Windows builds support **x64 only**; other Windows architectures fail compilation
 with an explicit diagnostic. This restriction does not apply to macOS/Linux ARM.

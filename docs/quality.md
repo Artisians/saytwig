@@ -42,8 +42,11 @@ sockets. The separately supported cloud Linux desktop shares the workspace, and
 application access has now been established through its documented computer-control
 API. The optimized Linux artifact identified in [BUILD_STATUS](BUILD_STATUS.md)
 rendered using the existing Mesa software Vulkan driver with non-shared-memory
-presentation. Navigation, empty history and a persisted vocabulary preference were
-inspected hands-on. No account permission or microphone was opened for those flows.
+presentation. Navigation, empty history, and a persisted vocabulary preference were
+inspected on the earlier `ead464b1` build, without opening account permissions or
+the microphone. Those flows were not fully repeated on the optimized artifact.
+Its recorded checks cover Start reaching microphone acquisition, recovery from
+the unavailable capture device, Escape during startup, and normal shutdown.
 
 Record newer native builds separately: a previous screenshot does not verify a
 later source change. This cloud software-rendered inspection is not Windows device

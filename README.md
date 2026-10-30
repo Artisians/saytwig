@@ -30,8 +30,10 @@ still need platform QA. A successful build does not establish working dictation.
 Pull requests run formatting, production Clippy, native linking, and packaging.
 Merges to `main` publish commit-addressed experimental nightly prereleases with
 Windows x64 setup, macOS Apple Silicon and Intel app bundles, and Linux x64 archives.
-These builds are unsigned. macOS builds are not notarized. Nightly packages do not
-include the speech runtime or model and are not stable releases.
+Windows packages are unsigned. macOS packages use ad-hoc signatures and are not
+notarized. macOS packaging and nightly publication currently remain blocked on
+[license evidence](scripts/release/STATUS.md). Nightly packages do not include
+the speech runtime or model and are not stable releases.
 
 The [first Windows ZIP prerelease](https://github.com/Artisians/saytwig/releases/tag/saytwig-experimental-20261030-b8c08a0)
 remains available. New Windows nightlies use a setup executable instead.

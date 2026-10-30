@@ -4,10 +4,10 @@ Saytwig is an unreleased local speech recognition app.
 
 ## Published source and CI
 
-- The latest published app source is [`02ef2802`](https://github.com/Artisians/saytwig/tree/02ef2802e6a66b58dc429f747d4d8eddce9b42d3). Both [push CI](https://github.com/Artisians/saytwig/actions/runs/40978906973) and [PR CI](https://github.com/Artisians/saytwig/actions/runs/40978911619) passed formatting, strict production Clippy, and native Linux x64 and Windows MSVC x64 linking.
-- [`30e0d5cd`](https://github.com/Artisians/saytwig/commit/30e0d5cdac9bd758f01e59489305f41ca18ac5d8) changes only the nightly README. `main` contains the product README; application source lives on `nightly`.
-- [Draft PR #1](https://github.com/Artisians/saytwig/pull/1) proposes promotion to `stable`. No application release has been promoted.
-- New resource limits, consumer setup, account controls, and the recording-popup fix passed local formatting, strict production Clippy, and optimized Linux linking. Hands-on inspection confirmed that Start no longer crashes. Published CI does not validate these newer files.
+- The first app-only [Windows ZIP prerelease](https://github.com/Artisians/saytwig/releases/tag/saytwig-experimental-20261030-b8c08a0) identifies source `b8c08a0547c9a4af89b98f10541b1c765c0974f6`. It does not include the speech runtime or model.
+- [PR #2](https://github.com/Artisians/saytwig/pull/2) migrates application source and the landing page to `main`. Feature PRs target `main`; successful four-platform packaging after each merge publishes a commit-addressed experimental nightly prerelease. See [release flow](release.md).
+- [PR #1](https://github.com/Artisians/saytwig/pull/1) was closed without merge. Historical `nightly` and `stable` branches remain intact. No stable application release has been promoted.
+- Native Linux and Windows production checks passed on the app baseline. The migration adds macOS native checks, but macOS packaging and all-platform nightly publication remain blocked on [original license evidence](../scripts/release/STATUS.md).
 - Native linking does not establish microphone, shortcut, paste, or UI behavior on Windows. No stable release or signed installer is available.
 
 ## Build and native inspection evidence
@@ -82,7 +82,7 @@ microphone, UI and Windows. Details: [speech bridge](../crates/phonon/README.md)
   run on Windows. Its pinned inputs total 472,062,622 download bytes. Interrupted
   or unknown preparation directories still require manual recovery. See
   [first-run setup](../scripts/phonon/FIRST_RUN_SETUP.md).
-- Native application notices pass for the current lockfile: 475 Windows packages
+- Native application notices pass for the current lockfile: 474 Windows packages
   and 577 Linux packages, with zero reported blockers. Each artifact workflow must
   regenerate notices from its own checkout. This receipt does not cover the speech
   runtime. The soundfile/libsndfile runtime bundle still needs exact

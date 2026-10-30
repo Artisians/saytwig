@@ -259,7 +259,8 @@ def collect_assets(packages, output, blockers):
         inventory.append({**item, "notice": "SAYTWIG-LICENSE.txt"})
     paths = list((ROOT / "crates").rglob("*")) + list((ROOT / "assets").rglob("*"))
     for path in sorted(paths):
-        if path.suffix.lower() in {".ttf", ".otf", ".woff", ".woff2", ".svg", ".png", ".ico", ".jpg"}:
+        if path.suffix.lower() in {".ttf", ".otf", ".ttc", ".eot", ".woff", ".woff2", ".svg", ".png",
+                                   ".ico", ".icns", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}:
             if path not in reviewed_assets:
                 blockers.append(f"Unreviewed application asset: {path.relative_to(ROOT)}")
     write_json(output / "ASSET-INVENTORY.json", {
@@ -364,11 +365,13 @@ def generate(args):
             if not users:
                 continue
             covered.update(users)
-            if not license.get("source_path"):
+            normalized = re.sub(r"\s+", " ", license["text"]).strip()
+            # A missing scanner path is acceptable only with each crate's exact original text.
+            if not license.get("source_path") and not all(
+                    normalized in source_texts.get(user, []) for user in users):
                 blockers.append(f"Canonical-only license text ({license['id']}): {users}")
             # cargo-about deduplicates equal texts and keeps one source_path;
             # a sourced entry must not mask another crate's canonical fallback.
-            normalized = re.sub(r"\s+", " ", license["text"]).strip()
             for user in users:
                 if user in source_texts and not any(normalized in text for text in source_texts[user]):
                     # Harvesting also extracts embedded source-file copyright

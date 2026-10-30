@@ -16,7 +16,8 @@ def run(*command):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("gate", choices=("format", "rust", "all"), default="all", nargs="?")
-    parser.add_argument("--target", choices=("x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"))
+    parser.add_argument("--target", choices=("x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc",
+                                             "aarch64-apple-darwin", "x86_64-apple-darwin"))
     parser.add_argument("--profile", choices=("dev", "release"), default="dev")
     args = parser.parse_args()
     if args.gate in ("format", "all"):

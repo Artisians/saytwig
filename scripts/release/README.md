@@ -22,9 +22,9 @@ because cargo-about resolves metadata before target filtering. It then harvests
 offline; target-excluded packages are not added to the notices.
 
 The Windows recipe includes `dictation-desktop/tray`, matching the release build;
-the Linux recipe uses the app's existing default production features. Windows
-ARM/32-bit targets are rejected. These two current release recipes are not a
-statement that macOS/Linux ARM support was removed. Profile optimization does
+Linux x64 and macOS Apple Silicon/Intel use the app's existing default production
+features. Windows ARM/32-bit targets are rejected. Linux ARM source paths remain
+intact but have no hosted package recipe. Profile optimization does
 not change this Cargo dependency recipe; changing features/assets requires a new
 reviewed recipe. Do not enable all-features or dev dependencies for this report.
 

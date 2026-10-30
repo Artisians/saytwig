@@ -17,6 +17,8 @@ ABOUT_VERSION = "0.9.2"
 TARGETS = {
     "x86_64-pc-windows-msvc": ["dictation-desktop/tray"],
     "x86_64-unknown-linux-gnu": [],
+    "aarch64-apple-darwin": [],
+    "x86_64-apple-darwin": [],
 }
 NOTICE_NAME = re.compile(r"^(licen[cs]e|copying|copyright|notice|authors|ofl)([._-].*)?$", re.I)
 

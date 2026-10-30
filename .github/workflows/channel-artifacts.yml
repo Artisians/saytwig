@@ -1,8 +1,9 @@
-name: App-only channel artifacts
+name: Experimental packages
 
 on:
+  pull_request:
   push:
-    branches: [nightly, stable]
+    branches: [main]
     tags: ['saytwig-v*']
 
 permissions: {}
@@ -20,10 +21,11 @@ env:
   CARGO_BUILD_WARNINGS: deny
   CARGO_TERM_COLOR: always
   CARGO_TARGET_DIR: target/channel
+  MACOSX_DEPLOYMENT_TARGET: '13.0'
 
 jobs:
   candidate:
-    name: App-only candidate (${{ matrix.target }})
+    name: Package (${{ matrix.target }})
     permissions:
       contents: read
     strategy:
@@ -32,6 +34,12 @@ jobs:
         include:
           - os: windows-2022
             target: x86_64-pc-windows-msvc
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
@@ -42,6 +50,19 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.13.16'
+      - name: Linux native build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config clang cmake libasound2-dev libfontconfig-dev libfreetype-dev libssl-dev libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libxcb1-dev libvulkan-dev libzstd-dev libglib2.0-dev
+      - name: Require native Windows x64 installer compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') { throw 'Native Windows x64 required' }
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $compiler)) { throw 'Runner image is missing Inno Setup 6' }
+          & $compiler /?
       - name: Install pinned Rust tools and native target
         run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy --target ${{ matrix.target }}
       - name: Restore pinned notice tool
@@ -54,7 +75,7 @@ jobs:
         if: steps.notice-tool.outputs.cache-hit != 'true'
         run: cargo install cargo-about --version 0.9.2 --features cli --locked --root .tools/cargo-about
       - name: Save pinned notice tool
-        if: steps.notice-tool.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && steps.notice-tool.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tools/cargo-about/
@@ -71,10 +92,10 @@ jobs:
           key: channel-${{ matrix.os }}-${{ runner.arch }}-rust1.99.1-${{ matrix.target }}-release-${{ hashFiles('Cargo.lock', '**/Cargo.toml', 'rust-toolchain.toml', '.github/workflows/channel-artifacts.yml', 'scripts/checks/run.py') }}-${{ github.sha }}
           restore-keys: |
             channel-${{ matrix.os }}-${{ runner.arch }}-rust1.99.1-${{ matrix.target }}-release-${{ hashFiles('Cargo.lock', '**/Cargo.toml', 'rust-toolchain.toml', '.github/workflows/channel-artifacts.yml', 'scripts/checks/run.py') }}-
-      - name: Require same-source notices, then build and package candidate
+      - name: Require same-source notices, then build native package
         run: python scripts/release/build_channel.py --target ${{ matrix.target }}
       - name: Save successful release-profile cache
-        if: steps.release-cache.outputs.cache-hit != 'true'
+        if: github.event_name == 'push' && steps.release-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -83,13 +104,58 @@ jobs:
             ~/.cargo/git/db/
             target/channel/
           key: ${{ steps.release-cache.outputs.cache-primary-key }}
-      - name: Upload app-only candidate (not a GitHub Release or installer)
+      - name: Upload native experimental package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: saytwig-${{ github.ref_name }}-${{ matrix.target }}-${{ github.sha }}
+          name: saytwig-${{ matrix.target }}-${{ github.sha }}
           path: |
-            dist/channel/${{ matrix.target }}/*.zip
-            dist/channel/${{ matrix.target }}/*.zip.sha256
+            dist/channel/${{ matrix.target }}/*-setup.exe
+            dist/channel/${{ matrix.target }}/*.dmg
+            dist/channel/${{ matrix.target }}/*.tar.gz
+            dist/channel/${{ matrix.target }}/*.sha256
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+
+  nightly:
+    name: Publish experimental nightly
+    needs: candidate
+    if: github.repository == 'Artisians/saytwig' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: Artisians/saytwig
+      SOURCE_SHA: ${{ github.sha }}
+      RUN_ID: ${{ github.run_id }}
+    steps:
+      - name: Download this run's packages and publish a commit-addressed prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$RUN_ID" --repo "$GH_REPO" --pattern "saytwig-*-$SOURCE_SHA" --dir packages
+          mapfile -t sums < <(find packages -type f -name '*.sha256' | sort)
+          [[ ${#sums[@]} -eq 4 ]] || { echo 'Expected four native packages'; exit 1; }
+          for checksum in "${sums[@]}"; do
+            (cd "$(dirname "$checksum")" && sha256sum --check "$(basename "$checksum")")
+          done
+          mapfile -t assets < <(find packages -type f | sort)
+          [[ ${#assets[@]} -eq 8 ]] || { echo 'Expected four packages and four checksums'; exit 1; }
+          tag="saytwig-nightly-$SOURCE_SHA"
+          printf '%s\n' \
+            "Experimental nightly from $SOURCE_SHA." \
+            '' \
+            'Windows x64 setup; macOS Apple Silicon and Intel DMGs; Linux x64 tar archive.' \
+            'Unsigned, not notarized, and not a stable release. Checksums are not signatures.' \
+            'Speech runtime/model are not bundled. Managed speech setup is Windows-only.' \
+            'Native dictation, installation and permission flows still need platform QA.' \
+            "Source and limitations: https://github.com/Artisians/saytwig/blob/$SOURCE_SHA/docs/release.md" > notes.md
+          gh api --method POST "repos/$GH_REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$SOURCE_SHA" > tag.json
+          jq --exit-status --arg sha "$SOURCE_SHA" '.object.type == "commit" and .object.sha == $sha' tag.json
+          gh release create "$tag" "${assets[@]}" --repo "$GH_REPO" --verify-tag --target "$SOURCE_SHA" \
+            --title "Saytwig experimental nightly ${SOURCE_SHA:0:12}" --notes-file notes.md --prerelease --latest=false
+          [[ "$(gh api "repos/$GH_REPO/git/ref/tags/$tag" --jq .object.sha)" == "$SOURCE_SHA" ]]
+          gh release view "$tag" --repo "$GH_REPO" --json url,isDraft,isPrerelease,targetCommitish,assets

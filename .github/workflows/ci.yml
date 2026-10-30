@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, nightly, stable]
+    branches: [main]
   workflow_dispatch:
 
 permissions: {}
@@ -18,7 +18,8 @@ env:
   RUST_BACKTRACE: 1
   RUSTUP_TOOLCHAIN: 1.99.1
   CARGO_INCREMENTAL: 0
-  SAYTWIG_BUILD_CHANNEL: ${{ github.ref == 'refs/heads/nightly' && 'nightly' || 'development' }}
+  MACOSX_DEPLOYMENT_TARGET: '13.0'
+  SAYTWIG_BUILD_CHANNEL: ${{ github.ref == 'refs/heads/main' && 'nightly' || 'development' }}
   SAYTWIG_BUILD_COMMIT: ${{ github.sha }}
 
 jobs:
@@ -54,6 +55,10 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - os: windows-2022
             target: x86_64-pc-windows-msvc
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:

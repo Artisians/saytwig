@@ -12,7 +12,9 @@ before adding them; they are outside the initial product scope.
 3. State exactly which platforms/devices were exercised. Compilation, static review, concept renders, and real native/device
    inspection are different evidence.
 4. Provide screenshots for interface changes and disclose unfinished controls.
-5. Keep PRs draft until the implementation and evidence are ready for review.
+5. Target `main` and open a non-draft PR when the implementation and evidence are
+   ready for review. Resolve actual CodeRabbit feedback and required CI checks
+   before asking a maintainer to merge. Do not count skipped checks as reviews.
 
 AI-assisted contributions are welcome when the contributor understands and can
 maintain the result. Disclose material AI assistance and check licenses and

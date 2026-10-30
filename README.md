@@ -9,10 +9,6 @@
 </p>
 
 <p align="center">
-  <strong>Your voice. Your device. Your words.</strong>
-</p>
-
-<p align="center">
   <a href="https://github.com/Artisians/saytwig/tree/nightly">Explore nightly</a> ·
   <a href="#development">Build from source</a> ·
   <a href="docs/account.md">Accounts &amp; privacy</a>
@@ -26,7 +22,7 @@
 
 ---
 
-## Less between you and your words
+## Speech recognition on your device
 
 | Local speech | Native workspace | Optional cleanup |
 | :--- | :--- | :--- |
@@ -48,7 +44,7 @@ No analytics or silent API-key billing is built into the app.
 shortcut. Manual Start and other platforms use Copy. Native Windows insertion
 still needs verification; input dispatch is not proof that another app accepted it.
 
-## Try the source, not a promise
+## Build status
 
 **Pre-release · no installers or downloadable nightly binaries yet.** Packaging
 and dependency-license review remain release gates.
@@ -58,13 +54,10 @@ and dependency-license review remain release gates.
 | [Nightly](https://github.com/Artisians/saytwig/tree/nightly) | Active development source. CI builds and lints Linux x64 and Windows MSVC x64. |
 | [Stable](https://github.com/Artisians/saytwig/tree/stable) | Promotion target; the first application snapshot has not been promoted. |
 
-Follow the [draft promotion PR](https://github.com/Artisians/saytwig/pull/1) and
-[release checklist](docs/release.md). A green build is not a stable release.
+See [release status](docs/release.md) for packaging requirements.
 
-The actual Linux interface has launched, and preferences navigation/save has been
-exercised. Physical microphone capture, Windows paste, and live ChatGPT account
-flows are not yet device-verified. See [build status](docs/BUILD_STATUS.md) for the
-full evidence and limits.
+Microphone capture, Windows paste, and ChatGPT account flows still need native-device
+validation. See [build details](docs/BUILD_STATUS.md).
 
 ## Development
 
@@ -89,10 +82,8 @@ PyTorch. Model weights are not embedded in the executable.
 
 ## Built with credit
 
-[Handy](https://github.com/cjpais/Handy) and its contributors inspired the original
-project and workflow. Saytwig is newly authored in this standalone repository;
-the earlier `Artisians/handy-phonon2` repository is left unchanged. This is not a
-claim of a formal clean-room process.
+[Handy](https://github.com/cjpais/Handy) and its contributors inspired Saytwig's
+speech-to-text workflow.
 
 The native interface uses [GPUI](https://gpui.rs/) and GPUI Kit. Speech recognition
 uses Fermion Research and **Phonon 2.5 English**, derived from **NVIDIA Parakeet**.

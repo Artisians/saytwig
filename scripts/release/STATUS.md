@@ -12,7 +12,7 @@ by the current recipe. That older failed receipt is not a current approval.
 
 Current authored evidence includes:
 
-- VCS-commit/URL/SHA-256-pinned original upstream texts for 29 packages, including
+- VCS-commit/URL/SHA-256-pinned original upstream texts for 34 packages, including
   GPUI Kit, AccessKit, Lyon and the full Zune Zlib license with original headers.
 - Hash-pinned clarifications of complex local license files and the actual
   lowercase Microsoft `license-mit` files, without substituting invented holders.
@@ -58,3 +58,17 @@ Require generator exit zero and READY.json on the immutable packaging checkout.
 Check the target, features, tool version, Cargo.lock hash, and retained evidence.
 A source CI result or partially populated output directory is not a notices pass.
 Source publication remains independent of this binary gate.
+
+## macOS packages remain blocked
+
+The first native macOS packaging run failed the notices gate on both architectures.
+Five additional upstream receipts now cover `accesskit_macos 0.26.3`, `objc-sys 0.3.5`,
+`objc2 0.5.3`, `objc2-app-kit 0.2.2`, and `objc2-foundation 0.2.2`. Each retains the
+exact license text from the published crate's repository and VCS commit.
+
+Twenty-one newer ObjC packages have upstream license declarations but no complete
+notice text at their published commits. The older `block 0.1.6` and `malloc_buf 0.0.6`
+archives lack published VCS metadata. The current gate does not substitute a guessed
+commit or extend its existing declaration exceptions to those packages. macOS
+distribution remains blocked pending source-backed evidence or an explicitly
+reviewed change to that policy. No macOS notices pass or legal clearance is claimed.

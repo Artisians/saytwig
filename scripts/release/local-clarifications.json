@@ -612,5 +612,17 @@
         "license": "MIT"
       }
     ]
+  },
+  {
+    "package": "option-ext",
+    "version": "0.2.0",
+    "declared_license": "MPL-2.0",
+    "selected_license": "MPL-2.0",
+    "files": [
+      {
+        "path": "LICENSE.txt",
+        "sha256": "66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172"
+      }
+    ]
   }
 ]

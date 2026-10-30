@@ -601,5 +601,96 @@
     ],
     "selected_license": "Zlib",
     "selected_file": "evidence/zune-jpeg-0.4.21/LICENSE-ZLIB"
+  },
+  {
+    "package": "accesskit_macos",
+    "version": "0.26.3",
+    "declared_license": "MIT OR Apache-2.0",
+    "repository": "https://github.com/AccessKit/accesskit",
+    "commit": "c88605b96d04431f9c3c792464a0f2f253480e94",
+    "files": [
+      {
+        "path": "LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/AccessKit/accesskit/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "local_path": "evidence/accesskit_macos-0.26.3/LICENSE-MIT"
+      },
+      {
+        "path": "LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/AccessKit/accesskit/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE-APACHE",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+        "local_path": "evidence/accesskit_macos-0.26.3/LICENSE-APACHE"
+      }
+    ],
+    "selected_license": "MIT",
+    "selected_file": "evidence/accesskit_macos-0.26.3/LICENSE-MIT"
+  },
+  {
+    "package": "objc-sys",
+    "version": "0.3.5",
+    "declared_license": "MIT",
+    "repository": "https://github.com/madsmtm/objc2",
+    "commit": "4fc083f1c6d6784577e38b0ee8dbd344481e2fd2",
+    "files": [
+      {
+        "path": "LICENSE.txt",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/4fc083f1c6d6784577e38b0ee8dbd344481e2fd2/LICENSE.txt",
+        "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+        "local_path": "evidence/objc-sys-0.3.5/LICENSE.txt"
+      }
+    ],
+    "selected_license": "MIT",
+    "selected_file": "evidence/objc-sys-0.3.5/LICENSE.txt"
+  },
+  {
+    "package": "objc2",
+    "version": "0.5.3",
+    "declared_license": "MIT",
+    "repository": "https://github.com/madsmtm/objc2",
+    "commit": "5237cbf081d04ef75a1f6a207b4018e7c1ae7438",
+    "files": [
+      {
+        "path": "LICENSE.txt",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/5237cbf081d04ef75a1f6a207b4018e7c1ae7438/LICENSE.txt",
+        "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+        "local_path": "evidence/objc2-0.5.3/LICENSE.txt"
+      }
+    ],
+    "selected_license": "MIT",
+    "selected_file": "evidence/objc2-0.5.3/LICENSE.txt"
+  },
+  {
+    "package": "objc2-app-kit",
+    "version": "0.2.2",
+    "declared_license": "MIT",
+    "repository": "https://github.com/madsmtm/objc2",
+    "commit": "e282618be4c3a3b9542957e0c8540e9588472ce8",
+    "files": [
+      {
+        "path": "LICENSE.txt",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/e282618be4c3a3b9542957e0c8540e9588472ce8/LICENSE.txt",
+        "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+        "local_path": "evidence/objc2-app-kit-0.2.2/LICENSE.txt"
+      }
+    ],
+    "selected_license": "MIT",
+    "selected_file": "evidence/objc2-app-kit-0.2.2/LICENSE.txt"
+  },
+  {
+    "package": "objc2-foundation",
+    "version": "0.2.2",
+    "declared_license": "MIT",
+    "repository": "https://github.com/madsmtm/objc2",
+    "commit": "e282618be4c3a3b9542957e0c8540e9588472ce8",
+    "files": [
+      {
+        "path": "LICENSE.txt",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/e282618be4c3a3b9542957e0c8540e9588472ce8/LICENSE.txt",
+        "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+        "local_path": "evidence/objc2-foundation-0.2.2/LICENSE.txt"
+      }
+    ],
+    "selected_license": "MIT",
+    "selected_file": "evidence/objc2-foundation-0.2.2/LICENSE.txt"
   }
 ]

@@ -62,7 +62,7 @@ jobs:
           if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') { throw 'Native Windows x64 required' }
           $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (!(Test-Path $compiler)) { throw 'Runner image is missing Inno Setup 6' }
-          & $compiler /?
+          (Get-Item $compiler).VersionInfo.ProductVersion
       - name: Install pinned Rust tools and native target
         run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy --target ${{ matrix.target }}
       - name: Restore pinned notice tool

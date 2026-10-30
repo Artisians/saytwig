@@ -15,6 +15,8 @@ After the locked production build/fetch, generate for the **same** target. Pytho
 ```sh
 python3 scripts/release/notices.py --target x86_64-pc-windows-msvc --output dist/windows/licenses
 python3 scripts/release/notices.py --target x86_64-unknown-linux-gnu --output dist/linux/licenses
+python3 scripts/release/notices.py --target aarch64-apple-darwin --output dist/macos-arm/licenses
+python3 scripts/release/notices.py --target x86_64-apple-darwin --output dist/macos-intel/licenses
 ```
 
 The script first runs `cargo fetch --locked` (source download only, not a build)
@@ -93,15 +95,15 @@ cargo-about clarifications. `local-clarifications.json` similarly pins combined
 license files that require explicit scanner guidance; full files and inherited
 notices are retained, not replaced by an invented copyright.
 
-The exact unmodified `option-ext 0.2.0` source archive is included with its
-Cargo.lock checksum and `MPL-SOURCE.txt` source-availability notice. It remains
-third-party MPL compliance material, not new application test scaffolding; no
-code from that archive is executed by this route. See the
+The exact unmodified `option-ext 0.2.0` source archive and the macOS build-only
+`cbindgen 0.28.0` archive, when selected, are included with their Cargo.lock checksums and the
+`MPL-SOURCE.txt` source-availability notice. They remain third-party MPL compliance
+material. The notices generator does not execute code from the retained archives. See the
 [Mozilla MPL 2.0 source distribution terms](https://www.mozilla.org/en-US/MPL/2.0/).
 The supplied webpki-roots CDLA agreement is retained too.
 
-Both reviewed target recipes passed cloud generation. See `STATUS.md` for the
-receipt scope and remaining release requirements. The packaging workflow must
+The Windows and Linux recipes passed cloud generation. See `STATUS.md` for the
+receipt scope and remaining platform requirements. The packaging workflow must
 regenerate notices from its own immutable checkout. A source CI result alone
 is not proof that distributable notices have passed.
 
@@ -128,6 +130,11 @@ not lost by its graph traversal; final notice membership/coverage is filtered
 against the target-specific `cargo tree -p dictation-app --edges normal,build`
 graph. Extra unrelated workspace package notices are not substituted for missing
 production dependencies.
+
+For macOS, cargo-about 0.9.2's target filter omits the selected `security-framework`
+packages. The generator harvests without that filter, then requires complete
+coverage of the target-specific Cargo tree. Other-platform packages do not enter
+the final notices. This keeps the pinned tool and the completeness gate intact.
 
 For multiple versions of one crate, a shared cargo-about clarification is used
 only when the selected license and exact terms hash match. Each version still

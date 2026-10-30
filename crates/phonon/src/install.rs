@@ -288,6 +288,7 @@ pub(crate) fn publish(source: &Path, destination: &Path) -> Result<()> {
         let _ = (source, destination);
         anyhow::bail!("Atomic model publication is currently supported on Windows and Linux");
     }
+    #[cfg(any(target_os = "linux", windows))]
     Ok(())
 }
 

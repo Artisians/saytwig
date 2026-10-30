@@ -192,34 +192,27 @@ def retain_source_archive(package, output, blockers):
 
 def covered_source(packages, output, blockers):
     """Retain the unmodified MPL source, not just a pointer to a mutable branch."""
-    lock = tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))
-    cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
+    notices = []
     for package in packages:
         if package["license"] != "MPL-2.0":
             continue
-        if package_key(package) != ("option-ext", "0.2.0"):
+        if package_key(package) not in {("option-ext", "0.2.0"), ("cbindgen", "0.28.0")}:
             blockers.append(f"New MPL source obligation needs review: {package_key(package)}")
             continue
-        records = [p for p in lock["package"] if package_key(p) == package_key(package)
-                   and p.get("source") == package["source"]]
-        archives = list((cargo_home / "registry" / "cache").glob("*/option-ext-0.2.0.crate"))
-        if len(records) != 1 or not archives:
-            blockers.append("Missing locked option-ext source archive")
-            continue
-        archive = next((p for p in archives if digest(p.read_bytes()) == records[0]["checksum"]), None)
+        archive = retain_source_archive(package, output, blockers)
         if archive is None:
-            blockers.append("option-ext source archive checksum mismatch")
             continue
-        shutil.copyfile(archive, output / archive.name)
-        (output / "MPL-SOURCE.txt").write_text(
-            "option-ext 0.2.0 is included under Mozilla Public License 2.0.\n"
+        name, version = package_key(package)
+        notices.append(
+            f"{name} {version} is included under Mozilla Public License 2.0.\n"
             "Its complete, unmodified published Source Code Form is provided in\n"
-            "option-ext-0.2.0.crate (gzip-compressed tar archive) in this directory.\n"
+            f"{archive['path']} (gzip-compressed tar archive) in this directory.\n"
             "Retain its source notices and MPL license; Saytwig's MIT license does\n"
             "not limit your rights to that covered source under the MPL.\n"
-            f"SHA-256: {records[0]['checksum']}\n"
-            "Upstream: https://crates.io/crates/option-ext/0.2.0\n",
-            encoding="utf-8")
+            f"SHA-256: {archive['sha256']}\n"
+            f"Upstream: https://crates.io/crates/{name}/{version}\n")
+    if notices:
+        (output / "MPL-SOURCE.txt").write_text("\n".join(notices), encoding="utf-8")
 
 
 def collect_assets(packages, output, blockers):
@@ -344,10 +337,13 @@ def generate(args):
     shutil.copyfile(ROOT / "LICENSE", output / "SAYTWIG-LICENSE.txt")
     shutil.copyfile(ROOT / "Cargo.lock", output / "Cargo.lock")
     harvest_path = output / "HARVEST.json"
+    # cargo-about 0.9.2's macOS filter omits keyring's security-framework packages.
+    # Harvest all platforms there; membership below still uses the target Cargo tree.
+    harvest_target = [] if args.target.endswith("-apple-darwin") else ["--target", args.target]
     about = subprocess.run([
         "cargo-about", "generate", "--manifest-path", "Cargo.toml", "--workspace",
         "--config", str(config_path), "--locked", "--fail", "--offline",
-        "--target", args.target, *feature_args(features), "--format", "json",
+        *harvest_target, *feature_args(features), "--format", "json",
         "--output-file", str(harvest_path),
     ], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
         env={**os.environ, "RAYON_NUM_THREADS": "2"}, timeout=600)

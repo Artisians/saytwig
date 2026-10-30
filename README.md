@@ -29,8 +29,9 @@ consent. Audio stays local; the original text remains available.
 | [Nightly](https://github.com/Artisians/saytwig/tree/nightly) | Application source and native Linux x64 / Windows MSVC x64 build checks. |
 | [Stable](https://github.com/Artisians/saytwig/tree/stable) | Promotion target; no application release has been promoted. |
 
-**Pre-release: no installers or downloadable nightly binaries yet.** Native-device
-validation and dependency notices are still in progress. See
+**Experimental Windows x64 build:** [download the app-only prerelease](https://github.com/Artisians/saytwig/releases/tag/saytwig-experimental-20261030-b8c08a0).
+It is unsigned, not an installer, and does not include the speech runtime or model.
+Native Windows operation and first-run setup remain unverified. See
 [release status](https://github.com/Artisians/saytwig/blob/nightly/docs/release.md).
 
 [Build evidence](https://github.com/Artisians/saytwig/blob/nightly/docs/BUILD_STATUS.md) ·
@@ -40,6 +41,5 @@ validation and dependency notices are still in progress. See
 
 ## Credits
 
-[Handy](https://github.com/cjpais/Handy) inspired the speech-to-text workflow.
 Saytwig uses GPUI, GPUI Kit, and Fermion Research's Phonon 2.5 English engine.
 Application code is MIT-licensed. Dependencies and model weights retain their own licenses.

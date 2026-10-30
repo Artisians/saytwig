@@ -59,3 +59,5 @@ This verifies an exact upstream content match, not an undocumented historical
 fetch commit. These website assets are not bundled into the native app.
 
 The served WOFF2 is 212,004 bytes with SHA-256 `d414a00ed3e47a8cc7462bd43975f0214a05c10b70b5f22686430beb6057ae2c`. The format conversion preserves the typeface and its SIL Open Font License.
+
+The HTML pins CSS and JavaScript URLs with the first 16 hex characters of each file’s SHA-256. Update the matching `?v=` value whenever either asset changes. This prevents a returning browser from combining a cached script or stylesheet with newly deployed HTML; it does not require changing zone-wide cache settings.

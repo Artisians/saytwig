@@ -354,6 +354,7 @@ def generate(args):
     addenda = []
     if about.returncode:
         blockers.append("cargo-about could not satisfy every expression; see HARVEST-DIAGNOSTICS.txt")
+        print(about.stderr[:16384], file=sys.stderr)
     else:
         result = json.loads(about.stdout)
         selected_packages = {package_key(p): p for p in packages}

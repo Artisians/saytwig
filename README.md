@@ -46,8 +46,10 @@ still needs verification; input dispatch is not proof that another app accepted 
 
 ## Build status
 
-**Pre-release · no installers or downloadable nightly binaries yet.** Packaging
-and dependency-license review remain release gates.
+**Pre-release.** Experimental Windows x64 packages are unsigned, app-only builds,
+not installers. They do not include the speech runtime or model. See
+[experimental downloads](https://github.com/Artisians/saytwig/releases).
+Native Windows operation and first-run speech setup remain unverified.
 
 | Channel | Where it stands |
 | :--- | :--- |

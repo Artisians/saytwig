@@ -67,17 +67,17 @@ Mint emphasizes headings and the waveform on the dark background. The source sec
 
 ## Typography
 
-The website serves Lato Regular locally with its SIL Open Font License. Sans-serif is the loading fallback. Headings use regular weight, balanced wrapping and negative tracking. Body text uses a 1.6 line height.
+The website serves Lato Regular as compressed WOFF2 locally with its SIL Open Font License. Sans-serif is the loading fallback. Headings use regular weight, balanced wrapping and negative tracking. Body text uses a 1.6 line height.
 
-The display and scene-heading roles are recorded above. Supporting scene copy uses 18px. Controls and captions use 12px to 14px. The source introduction uses 20px, and disclosure text uses 15px with a maximum measure of 65ch.
+The display and scene-heading roles are recorded above. Controls use 12px to 14px. Privacy disclosure text uses 15px with a maximum measure of 65ch.
 
 ## Layout
 
-With motion enabled, a 320svh story contains a sticky 100svh stage. Three scenes share that stage. A fixed header contains the mark, motion control and source link. Scene controls remain at the bottom. The source section follows in ordinary document flow and limits its inner content to 1080px.
+With motion enabled, a 320svh story contains a sticky 100svh stage. Three scenes share that stage. A fixed header contains the mark and source link. Scene controls remain at the bottom. The source section follows in ordinary document flow and limits its inner content to 1080px.
 
 At 760px and 520px, type, padding and control placement adapt. The narrow waveform extends past the viewport as decoration. Text remains within the viewport. The source section uses 24px side padding below 520px.
 
-Reduced motion, the Motion off control and the no-JavaScript fallback show the same scenes in document order. The reviewed captures cover desktop and a 500px Chromium window. Smaller devices remain unverified.
+Reduced motion and the no-JavaScript fallback show the same scenes in document order. The reviewed Chromium captures cover 1440×900, 768×600, 390px-wide and 320×568 viewports. Physical phones remain unverified.
 
 ## Elevation & Depth
 
@@ -92,17 +92,17 @@ The source action is a rounded rectangle. Narrow rounded bars form the waveform.
 ### Source action
 The main action has a dark fill, light text, a 56px minimum height and an arrow. Hover and active states use the documented dark-green colors. A 150ms background transition is disabled for reduced motion.
 
-### Header and motion control
-The header combines the wordmark, Motion control and source link. On narrow screens the motion label hides, but its accessible name remains. The control switches to static reading order. A system reduced-motion preference takes precedence and disables the toggle.
+### Header
+The header contains the wordmark and source link. Motion follows the system reduced-motion preference without a page-level toggle.
 
 ### Scene controls
 Voice, Words and Local are native buttons with 44px minimum heights. The active button uses mint text, an underline and aria-pressed. Inactive scene content is inert while motion is enabled, so hidden controls cannot receive keyboard focus.
 
 ### Scroll illustration
-Scroll updates coalesce into one pending animation frame. A finite entrance animates the waveform. Scroll progress compresses the bars, reveals the example sentence and shows the local-recognition scene. No animation loop runs while the page is idle. The caption identifies the sequence as an illustration.
+Scroll updates coalesce into one pending animation frame. A finite entrance animates the waveform. Scroll progress compresses the bars, reveals the example sentence and shows the local-recognition scene. No animation loop runs while the page is idle.
 
 ### Disclosures
-Native details and summary elements contain privacy and readiness information. Mint-section rules separate them. Keyboard focus uses a 2px current-color outline with a 6px offset across interactive controls.
+Native details and summary elements contain concise privacy information. Mint-section rules separate them. Keyboard focus uses a 2px current-color outline with a 6px offset across interactive controls.
 
 ## Do's and Don'ts
 

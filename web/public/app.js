@@ -7,9 +7,7 @@ const scenes = [...document.querySelectorAll('.scene')];
 const controls = [...document.querySelectorAll('[data-scene]')];
 const footer = document.getElementById('stage-footer');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-const motionToggle = document.getElementById('motion-toggle');
-let manuallyReduced = false;
-const isReduced = () => reducedMotion.matches || manuallyReduced;
+const isReduced = () => reducedMotion.matches;
 let frame = 0;
 let currentScene = -1;
 const clamp = (value) => Math.min(1, Math.max(0, value));
@@ -52,11 +50,6 @@ function syncMotion() {
   frame = 0;
   currentScene = -1;
   document.documentElement.classList.toggle('motion-paused', isReduced());
-  motionToggle.hidden = false;
-  motionToggle.disabled = reducedMotion.matches;
-  motionToggle.setAttribute('aria-pressed', String(isReduced()));
-  motionToggle.setAttribute('aria-label', reducedMotion.matches ? 'Reduced motion follows your system preference' : 'Reduce motion');
-  motionToggle.querySelector('span').textContent = isReduced() ? 'Motion off' : 'Motion on';
   document.body.classList.toggle('motion-ready', !isReduced());
   footer.hidden = isReduced();
   scenes.forEach((scene) => {
@@ -65,11 +58,6 @@ function syncMotion() {
   });
   if (!isReduced()) update();
 }
-motionToggle.addEventListener('click', () => {
-  manuallyReduced = !manuallyReduced;
-  syncMotion();
-  window.scrollTo({ top: 0, behavior: 'auto' });
-});
 controls.forEach((button, index) => button.addEventListener('click', () => goToScene(index)));
 document.querySelectorAll('a[href="#voice"], a[href="#words"]').forEach((link) => {
   link.addEventListener('click', (event) => {

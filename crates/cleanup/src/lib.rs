@@ -11,6 +11,8 @@ pub use tokio_util::sync::CancellationToken;
 const MAX_INPUT: usize = 32_768;
 const MAX_STREAM: usize = 524_288;
 const MAX_OUTPUT: usize = 65_536;
+const MAX_ERROR: usize = 16_384;
+const PLAN_LIMIT_CODE: &str = "subscription_sharing_usage_limit_exceeded";
 const ENDPOINT: &str = "https://api.openai.com/v1/responses";
 
 /// Speech is data, not a request to the editor. This prompt is independently
@@ -77,6 +79,8 @@ pub enum CleanupError {
     Network,
     #[error("The cleanup provider declined the request; the original text is retained")]
     Provider,
+    #[error("ChatGPT plan usage for this app is limited; the original text is retained")]
+    UsageLimit,
     #[error("Cleanup did not complete; the original text is retained")]
     Incomplete,
     #[error("Cleanup returned an invalid response; the original text is retained")]
@@ -202,7 +206,7 @@ impl CleanupClient {
             response = request.send() => response.map_err(|_| CleanupError::Network)?,
         };
         if !response.status().is_success() {
-            return Err(CleanupError::Provider);
+            return Err(response_error(response, &permit.revoked, cancelled).await);
         }
         let mut stream = response.bytes_stream();
         let mut decoder = StreamDecoder::default();
@@ -228,6 +232,41 @@ impl CleanupClient {
             return Err(CleanupError::Cancelled);
         }
         decoder.finish()
+    }
+}
+
+async fn response_error(
+    response: reqwest::Response,
+    revoked: &CancellationToken,
+    cancelled: &CancellationToken,
+) -> CleanupError {
+    if response.status() != reqwest::StatusCode::TOO_MANY_REQUESTS {
+        return CleanupError::Provider;
+    }
+    let mut bytes = Vec::new();
+    let mut stream = response.bytes_stream();
+    loop {
+        let next = tokio::select! { biased;
+            _ = revoked.cancelled() => return CleanupError::Consent,
+            _ = cancelled.cancelled() => return CleanupError::Cancelled,
+            next = stream.next() => next,
+        };
+        match next {
+            Some(Ok(chunk)) if bytes.len().saturating_add(chunk.len()) <= MAX_ERROR => {
+                bytes.extend_from_slice(&chunk);
+            }
+            Some(_) => return CleanupError::Provider,
+            None => break,
+        }
+    }
+    let body: Value = match serde_json::from_slice(&bytes) {
+        Ok(body) => body,
+        Err(_) => return CleanupError::Provider,
+    };
+    if body.pointer("/error/code").and_then(Value::as_str) == Some(PLAN_LIMIT_CODE) {
+        CleanupError::UsageLimit
+    } else {
+        CleanupError::Provider
     }
 }
 
@@ -284,9 +323,22 @@ impl StreamDecoder {
                 self.completed = true;
             }
             Some("response.completed") => return Err(CleanupError::InvalidResponse),
+            Some("error") if event.get("code").and_then(Value::as_str) == Some(PLAN_LIMIT_CODE) => {
+                return Err(CleanupError::UsageLimit);
+            }
+            Some("response.failed")
+                if event
+                    .pointer("/response/error/code")
+                    .and_then(Value::as_str)
+                    == Some(PLAN_LIMIT_CODE) =>
+            {
+                return Err(CleanupError::UsageLimit);
+            }
             Some(
                 "response.failed" | "response.incomplete" | "error" | "response.refusal.delta",
-            ) => return Err(CleanupError::Provider),
+            ) => {
+                return Err(CleanupError::Provider);
+            }
             Some("response.output_text.delta") => return Err(CleanupError::InvalidResponse),
             _ => {}
         }

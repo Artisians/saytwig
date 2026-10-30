@@ -168,3 +168,39 @@ CI embeds `SAYTWIG_BUILD_COMMIT` as the exact checked-out commit. Only actual
 other branch builds remain `development`. `stable` metadata is reserved for an
 authorized, reviewed `saytwig-vX.Y.Z` release build, not the branch name alone.
 The Cargo source version remains separate from this channel designation.
+
+## App-only channel artifact workflow
+
+`.github/workflows/channel-artifacts.yml` uses one native release-profile recipe
+for `nightly`, `stable`, and `saytwig-vX.Y.Z` tag pushes. This is separate from the
+fast development-profile CI checks. Workflow source existing is not evidence of
+a successful run or an available download; inspect the exact candidate's run.
+
+- Nightly output is an **unsigned app-only prerelease candidate**, identified by
+  source commit. Stable-branch output is a **development candidate**, not a stable
+  release. Only an exact `saytwig-vX.Y.Z` tag matching the app's Cargo version and
+  pointing into promoted stable history embeds the stable channel.
+- `scripts/release/build_channel.py` first requires the same-checkout notices
+  generator to exit zero and emit matching `READY.json`: schema, target, feature
+  recipe, Cargo.lock SHA-256 and pinned cargo-about 0.9.2. It rejects inventory
+  blockers and then runs shared formatting, production Clippy and native linking
+  with `--profile release`. A historical cloud receipt never substitutes for this.
+- The ZIP contains the native x64 executable, **all** generated license evidence
+  and required corresponding-source archives, `BUILD.json` with hashes/source
+  identity, and an explicit candidate notice. An adjacent checksum is not a
+  signature. Only the declared Linux x64 and Windows MSVC x64 recipes are accepted.
+- Python/PyTorch, models, system DLLs and installers are **not bundled**. Their
+  separate redistribution/native-operation gates remain open. The executable
+  alone is not an out-of-the-box speech installation.
+- Official SHA-pinned Actions upload candidates only after every gate succeeds;
+  downloads expire after seven days. Release-profile and pinned-tool caches are
+  separate from development caches. Active artifact runs are not cancelled by
+  newer pushes. The workflow has no repository-write permission or GitHub Release
+  creation step, and it does not run on pull requests.
+
+Stable promotion still requires the human maintainer review in CONTRIBUTING and
+native-device/release gates. Tags are not created by this workflow. Publishing a
+versioned stable GitHub Release remains a separate explicitly reviewed operation;
+no branch name, tag, green build, or notices receipt supplies that approval.
+There are no signing credentials, unsigned auto-install paths, or automatic
+approval reviews. No automated tests are added or run by this pipeline.

@@ -20,6 +20,18 @@ The application reports a clean failure before platform initialization when neit
 `DISPLAY` nor `WAYLAND_DISPLAY` is present. These variables are not interpreted as
 proof of device permission or successful rendering.
 
+On Windows x64, **Set up** shows the download sources, disk requirements and
+prerequisite before you choose **Download setup**. Initial setup downloads about
+472 MB for the runtime and English model. It uses about 843 MB after installation
+and about 1.9 GB during preparation, plus filesystem overhead. Microsoft Visual
+C++ x64 runtime may be required. Saytwig does not install that prerequisite.
+Startup never downloads these files. Other development platforms use the explicit
+runtime configuration below.
+
+Setup preserves ambiguous files after an interruption rather than deleting them.
+Automatic recovery is not available yet. The [first-run setup guide](../../scripts/phonon/FIRST_RUN_SETUP.md)
+describes the managed folder, verification and recovery limits.
+
 A development runtime uses these explicit configuration values:
 
 - `SAYTWIG_RUNTIME_DIR`: reviewed bundle containing `bundle.json`, `bridge.py`, and
@@ -32,8 +44,9 @@ A development runtime uses these explicit configuration values:
 
 All integrity checking, installation, microphone enumeration/capture, inference,
 and history/settings persistence run off the UI thread. Missing or invalid assets
-are shown explicitly. The model download requires the **Download English model**
-button; constructing the app never downloads a model or opens a microphone.
+are shown explicitly. The model-only download requires **Download English model**. Full setup requires
+**Download setup** after its disclosure. Constructing the app never downloads
+a model or opens a microphone.
 
 ## Actual flows
 
@@ -73,6 +86,15 @@ button; constructing the app never downloads a model or opens a microphone.
   No API-key or billing fallback exists. Connected accounts without plan-use permission
   have an explicit browser consent action; sharing remains off. Saved accounts always
   offer sign-in recovery and sign-out, including disconnected/pending credentials.
+- The first successful plan-enabled sign-in shows a dismissible explanation. Its
+  acknowledgement is one versioned boolean in local settings, not a transcript-sharing
+  grant. Failed settings writes remain visible. Manage usage opens only
+  https://chatgpt.com/settings/usage through the owned account worker.
+- An exact structured ChatGPT plan usage-limit error retains the original transcript
+  and pauses sharing. It does not imply the entire plan is exhausted. Only an explicit
+  sharing action resumes cleanup; generic HTTP 429 errors do not get this diagnosis.
+  Account commands have two queue slots and events have eight. UI submission never
+  blocks, and shutdown releases background event backpressure.
 - Preferences offer session-only, default-off permission for stable release checks.
   Permission does not initiate a request: a separate explicit Check action contacts
   GitHub. A dedicated one-slot worker uses the updater's 15-second/256-KiB bounds;
@@ -103,6 +125,22 @@ commit; an already-entered OS commit may finish and dispatched input cannot be
 recalled. Focus is checked again by the native adapter at dispatch, but Windows
 SendInput cannot atomically target an HWND: physical focus changes can still race.
 No claim of guaranteed targeting or delivery is made.
+
+## History rendering
+
+History renders 40 entries per page and checks one additional match to enable Next.
+Each row shows up to 100 characters. The selected preview shows up to 4,096
+characters and labels shortened text. Copy reads the full stored selection only
+when clicked. These limits do not delete or shorten stored history.
+
+Search accepts up to 512 characters and scans original text with streamed Unicode
+case folding. It does not allocate a lowercase copy of every entry. The scan still
+runs on the UI thread and can examine the retained file, whose size is bounded by
+storage. Worst-case search latency has not been measured.
+
+The native header embeds the approved first-party `assets/saytwig.svg` once and
+uses GPUI's image cache. It does not load website assets or fonts. This header mark
+does not configure the Windows executable's shell icon.
 
 ## Guidance and verification
 

@@ -1,6 +1,6 @@
 use crate::{AudioError, CaptureBuffer, CaptureStatus, Pcm16k, MAX_SECONDS};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -11,9 +11,26 @@ pub enum DeviceSelection {
     Default,
     Named(String),
 }
+// A timed-out native call can outlive its caller. Keep the lease in the worker,
+// through stream teardown, so retries cannot accumulate detached native workers.
+static CAPTURE_WORKER_ACTIVE: AtomicBool = AtomicBool::new(false);
+struct CaptureLease;
+impl CaptureLease {
+    fn acquire() -> Result<Self, AudioError> {
+        CAPTURE_WORKER_ACTIVE
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map(|_| Self)
+            .map_err(|_| AudioError::Busy)
+    }
+}
+impl Drop for CaptureLease {
+    fn drop(&mut self) {
+        CAPTURE_WORKER_ACTIVE.store(false, Ordering::Release);
+    }
+}
 pub struct Microphone;
 pub struct Capture {
-    commands: mpsc::Sender<Command>,
+    commands: mpsc::SyncSender<Command>,
     status: Arc<AtomicU8>,
     worker: Option<JoinHandle<Result<Pcm16k, AudioError>>>,
 }
@@ -22,7 +39,7 @@ pub struct Capture {
 /// Retaining this handle does not keep an already dropped Capture recording.
 #[derive(Clone)]
 pub struct CaptureCancellation {
-    commands: mpsc::Sender<Command>,
+    commands: mpsc::SyncSender<Command>,
     status: Arc<AtomicU8>,
 }
 impl CaptureCancellation {
@@ -30,7 +47,7 @@ impl CaptureCancellation {
     /// owned capture worker observes the flag within its next polling interval.
     pub fn cancel(&self) {
         self.status.store(3, Ordering::Release);
-        let _ = self.commands.send(Command::Cancel);
+        let _ = self.commands.try_send(Command::Cancel);
     }
 }
 enum Command {
@@ -68,27 +85,33 @@ impl Microphone {
         if cancelled() {
             return Err(AudioError::Cancelled);
         }
-        let (commands, receiver) = mpsc::channel();
+        let lease = CaptureLease::acquire()?;
+        let (commands, receiver) = mpsc::sync_channel(1);
         let (ready, started) = mpsc::sync_channel(1);
         let status = Arc::new(AtomicU8::new(0));
         let worker_status = status.clone();
-        let worker =
-            thread::spawn(move || run(selection, receiver, ready, worker_status, cancelled));
+        let worker = thread::Builder::new()
+            .name("saytwig-microphone".into())
+            .spawn(move || {
+                let _lease = lease;
+                run(selection, receiver, ready, worker_status, cancelled)
+            })
+            .map_err(|_| AudioError::StartFailed)?;
         match started.recv_timeout(Duration::from_secs(10)) {
             Ok(Ok(())) => Ok(Capture {
                 commands,
                 status,
                 worker: Some(worker),
             }),
-            Ok(Err(error)) => {
-                let _ = worker.join();
-                Err(error)
-            }
+            // Native stream destruction may still be running after this error.
+            // Do not turn a reported startup failure into an unbounded join;
+            // the worker retains its lease until teardown really finishes.
+            Ok(Err(error)) => Err(error),
             Err(_) => {
                 // A slow device must not start playing after the caller has
                 // already received a startup timeout.
                 status.store(3, Ordering::Release);
-                let _ = commands.send(Command::Cancel);
+                let _ = commands.try_send(Command::Cancel);
                 Err(AudioError::StartFailed)
             }
         }
@@ -107,7 +130,7 @@ impl Capture {
         decode_status(self.status.load(Ordering::Acquire))
     }
     pub fn stop(mut self) -> Result<Pcm16k, AudioError> {
-        let _ = self.commands.send(Command::Stop);
+        let _ = self.commands.try_send(Command::Stop);
         self.join()
     }
     pub fn cancel(mut self) -> Result<(), AudioError> {

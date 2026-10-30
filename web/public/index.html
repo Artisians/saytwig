@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#101210">
+  <meta name="description" content="Saytwig is a local speech recognition app for desktop, built in Rust with GPUI. Explore the pre-release source for Windows x64.">
+  <title>Saytwig — Your voice. In full flow.</title>
+  <link rel="icon" href="assets/saytwig.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/Lato-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="#voice" aria-label="Saytwig home"><img src="assets/saytwig.svg" width="42" height="42" alt=""><span>saytwig</span></a>
+    <div class="header-actions"><button class="motion-toggle" id="motion-toggle" type="button" aria-label="Reduce motion" aria-pressed="false" hidden><svg class="pause-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M7 5v10M13 5v10"/></svg><svg class="play-icon" aria-hidden="true" viewBox="0 0 20 20"><path d="m7 4 9 6-9 6Z"/></svg><span>Motion on</span></button><a class="source-link" href="https://github.com/Artisians/saytwig/tree/nightly">Source <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M5 15 15 5M5 5h10v10"/></svg></a></div>
+  </header>
+  <main id="main">
+    <div class="story" id="story">
+      <div class="stage" id="stage">
+        <section class="scene scene-voice" id="voice" aria-labelledby="voice-title">
+          <div class="voice-copy"><h1 id="voice-title">Your voice.<br><span>In full flow.</span></h1><p>A local speech recognition app for desktop,<br class="wide-only"> built in Rust with GPUI.</p></div>
+          <div class="wave-field" aria-hidden="true"><div class="wave" id="wave"><span style="--height:12px;--delay:0ms"></span><span style="--height:17px;--delay:12ms"></span><span style="--height:10px;--delay:24ms"></span><span style="--height:25px;--delay:36ms"></span><span style="--height:34px;--delay:48ms"></span><span style="--height:22px;--delay:60ms"></span><span style="--height:46px;--delay:72ms"></span><span style="--height:31px;--delay:84ms"></span><span style="--height:56px;--delay:96ms"></span><span style="--height:75px;--delay:108ms"></span><span style="--height:51px;--delay:120ms"></span><span style="--height:92px;--delay:132ms"></span><span style="--height:66px;--delay:144ms"></span><span style="--height:118px;--delay:156ms"></span><span style="--height:87px;--delay:168ms"></span><span style="--height:142px;--delay:180ms"></span><span style="--height:109px;--delay:192ms"></span><span style="--height:170px;--delay:204ms"></span><span style="--height:127px;--delay:216ms"></span><span style="--height:196px;--delay:228ms"></span><span style="--height:150px;--delay:240ms"></span><span style="--height:224px;--delay:252ms"></span><span style="--height:181px;--delay:264ms"></span><span style="--height:255px;--delay:276ms"></span><span style="--height:208px;--delay:288ms"></span><span style="--height:276px;--delay:300ms"></span><span style="--height:230px;--delay:312ms"></span><span style="--height:302px;--delay:324ms"></span><span style="--height:247px;--delay:336ms"></span><span style="--height:322px;--delay:348ms"></span><span style="--height:270px;--delay:360ms"></span><span style="--height:306px;--delay:348ms"></span><span style="--height:241px;--delay:336ms"></span><span style="--height:280px;--delay:324ms"></span><span style="--height:213px;--delay:312ms"></span><span style="--height:253px;--delay:300ms"></span><span style="--height:177px;--delay:288ms"></span><span style="--height:226px;--delay:276ms"></span><span style="--height:150px;--delay:264ms"></span><span style="--height:202px;--delay:252ms"></span><span style="--height:132px;--delay:240ms"></span><span style="--height:178px;--delay:228ms"></span><span style="--height:113px;--delay:216ms"></span><span style="--height:155px;--delay:204ms"></span><span style="--height:96px;--delay:192ms"></span><span style="--height:125px;--delay:180ms"></span><span style="--height:79px;--delay:168ms"></span><span style="--height:104px;--delay:156ms"></span><span style="--height:61px;--delay:144ms"></span><span style="--height:83px;--delay:132ms"></span><span style="--height:45px;--delay:120ms"></span><span style="--height:64px;--delay:108ms"></span><span style="--height:34px;--delay:96ms"></span><span style="--height:47px;--delay:84ms"></span><span style="--height:22px;--delay:72ms"></span><span style="--height:35px;--delay:60ms"></span><span style="--height:15px;--delay:48ms"></span><span style="--height:24px;--delay:36ms"></span><span style="--height:12px;--delay:24ms"></span><span style="--height:17px;--delay:12ms"></span><span style="--height:9px;--delay:0ms"></span></div></div>
+          <a class="scroll-cue" href="#words">Scroll to find your words <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 3v14m-5-5 5 5 5-5"/></svg></a>
+        </section>
+        <section class="scene scene-words" id="words" aria-labelledby="words-title">
+          <div class="words-copy"><h2 id="words-title">A little less typing.<br><span>A little more thinking.</span></h2><p>From a thought to a line of text.</p><p class="static-caption">Illustrated flow, not a live recording.</p></div>
+          <div class="word-line" aria-hidden="true"></div>
+        </section>
+        <section class="scene scene-local" id="local" aria-labelledby="local-title">
+          <div class="local-copy"><img class="local-mark" src="assets/saytwig.svg" width="104" height="104" alt=""><h2 id="local-title">On your device.<br><span>In your hands.</span></h2><p>English recognition runs locally.<br>No transcription account required.</p><a class="quiet-link" href="#source">Meet Saytwig <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 3v14m-5-5 5 5 5-5"/></svg></a></div>
+        </section>
+        <div class="stage-footer" id="stage-footer" hidden>
+          <p>Illustrated flow, not a live recording.</p>
+          <nav class="scene-controls" aria-label="Illustration scenes"><button type="button" data-scene="0" aria-pressed="true">Voice</button><button type="button" data-scene="1" aria-pressed="false">Words</button><button type="button" data-scene="2" aria-pressed="false">Local</button></nav>
+        </div>
+      </div>
+    </div>
+    <section class="source-section" id="source" aria-labelledby="source-title">
+      <div class="source-inner">
+        <h2 id="source-title">Make room<br>for your words.</h2>
+        <p class="source-intro">On-device speech recognition in a native workspace.</p>
+        <a class="button" href="https://github.com/Artisians/saytwig/tree/nightly">Explore nightly source <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 10h12m-5-5 5 5-5 5"/></svg></a>
+        <p class="release-note">Pre-release · Windows x64<br>No installers or downloadable nightly binaries yet.</p>
+        <div class="disclosures">
+          <details><summary>Your voice stays local. Cleanup is your call.</summary><p>English recognition and history live on your device. Optional ChatGPT cleanup shares only transcript text after you connect an account, choose a model, and explicitly enable sharing. Connecting alone does not enable it. A failed cleanup keeps your original text.</p><a href="https://github.com/Artisians/saytwig/blob/nightly/docs/account.md">Accounts &amp; privacy</a></details>
+          <details><summary>Built in the open. Still growing.</summary><p>The native interface has run on Linux, including preferences navigation and saving. Physical microphone capture, Windows paste, and live ChatGPT account flows still need device verification.</p><p>Stable promotion and packaging are pending. Follow the <a href="https://github.com/Artisians/saytwig/pull/1">draft promotion PR</a> and <a href="https://github.com/Artisians/saytwig/blob/nightly/docs/release.md">release checklist</a>.</p></details>
+        </div>
+        <footer><a class="brand" href="#voice" aria-label="Saytwig home"><img src="assets/saytwig.svg" width="34" height="34" alt=""><span>saytwig</span></a><a href="https://github.com/Artisians/saytwig/blob/nightly/THIRD_PARTY_NOTICES.md">Credits &amp; licenses</a></footer>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

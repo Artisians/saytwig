@@ -34,5 +34,15 @@
         "src/theme/mono_font.rs": "9249489b11d334d68835702d3d6f3168259ede5d7a564cb931e4f063da1c872c"
       }
     }
+  ],
+  "application_assets": [
+    {
+      "path": "assets/saytwig.svg",
+      "sha256": "69ea415614337ed646f6cd9882d1700d7ea3827e89c0f33369eb1123db60ef4f",
+      "license": "MIT",
+      "ownership": "First-party Saytwig asset",
+      "source": "crates/app/src/shell.rs",
+      "embedding": "include_bytes!(\"../../../assets/saytwig.svg\")"
+    }
   ]
 }

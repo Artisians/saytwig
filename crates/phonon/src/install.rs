@@ -241,7 +241,7 @@ fn prepare(
     }
 }
 
-fn publish(source: &Path, destination: &Path) -> Result<()> {
+pub(crate) fn publish(source: &Path, destination: &Path) -> Result<()> {
     #[cfg(target_os = "linux")]
     {
         rustix::fs::renameat_with(

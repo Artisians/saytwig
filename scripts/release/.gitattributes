@@ -1,0 +1,2 @@
+# License evidence is byte-hashed against upstream. Never rewrite line endings.
+evidence/** -text

@@ -177,3 +177,22 @@ and cloud-runtime shutdown is bounded around uninterruptible vault workers.
 These are source/build findings, not native OAuth or real-provider execution.
 The native window/rendering issue is owned separately and is not evidence that
 account or cleanup flows have been exercised.
+
+
+## Plan-use controls
+
+A successful plan-enabled sign-in schedules a one-time notice. Dismissing it saves
+`chatgpt_plan_notice_seen_v1` as one boolean in local settings. The notice does not
+enable transcript sharing. Its acknowledgement is per local app user, not per
+ChatGPT profile.
+
+The model picker shows whether sharing is enabled and links to
+[ChatGPT usage settings](https://chatgpt.com/settings/usage). Opening that fixed
+link does not initialize the credential store. The app preserves the original
+transcript and disables sharing when the active request receives the documented
+`subscription_sharing_usage_limit_exceeded` code. A generic HTTP429 does not
+establish exhausted plan usage. Resuming requires an explicit sharing action.
+
+These controls follow the [plan-use UI guidance](https://developers.openai.com/siwc/ui-ux-guidelines).
+They passed source review, formatting, and production Clippy. No real account,
+OAuth grant, or provider request was used to exercise them.

@@ -26,7 +26,8 @@ def digest(data):
 
 
 def run(args):
-    return subprocess.run(args, cwd=ROOT, check=True, capture_output=True, text=True).stdout
+    return subprocess.run(args, cwd=ROOT, check=True, capture_output=True, text=True,
+                          timeout=600).stdout
 
 
 def write_json(path, value):
@@ -44,6 +45,7 @@ def package_key(package):
 def upstream_evidence(packages, output, blockers):
     selected = {package_key(p): p for p in packages}
     evidence = {}
+    configured_upstream = {}
     config = (HERE / "about.toml").read_text(encoding="utf-8")
     for item in json.loads((HERE / "upstream-evidence.json").read_text(encoding="utf-8")):
         key = (item["package"], item["version"])
@@ -69,14 +71,29 @@ def upstream_evidence(packages, output, blockers):
                           "sha256": file["sha256"], "source_url": file["url"]})
         evidence[key] = files
         file = next(f for f in item["files"] if f["local_path"] == item["selected_file"])
+        checksum = item.get("selected_text_sha256", file["sha256"])
+        if item.get("selected_start"):
+            text = (HERE / file["local_path"]).read_text(encoding="utf-8")
+            selected_text = text[text.index(item["selected_start"]):]
+            if digest(selected_text.encode("utf-8")) != checksum:
+                blockers.append(f"Selected upstream text changed: {key}")
+        signature = (item["selected_license"], checksum)
+        if item["package"] in configured_upstream:
+            if configured_upstream[item["package"]] != signature:
+                blockers.append(f"Multiple versions need separate upstream recipes: {item['package']}")
+            continue
+        configured_upstream[item["package"]] = signature
         section = json.dumps(item["package"])
         config += (f"\n[{section}.clarify]\nlicense = {json.dumps(item['selected_license'])}\n"
                    f"[[{section}.clarify.files]]\n"
                    f"path = {json.dumps(str((HERE / file['local_path']).resolve()))}\n"
-                   f"checksum = {json.dumps(file['sha256'])}\n")
+                   f"checksum = {json.dumps(checksum)}\n")
+        if item.get("selected_start"):
+            config += f"start = {json.dumps(item['selected_start'])}\n"
     config_path = output / "harvest-config.toml"
     # Combined-license files and inherited notices can confuse the scanner.
     # These reviewed clarifications preserve the complete original files.
+    configured = {}
     for item in json.loads((HERE / "local-clarifications.json").read_text(encoding="utf-8")):
         key = (item["package"], item["version"])
         if key not in selected:
@@ -87,15 +104,88 @@ def upstream_evidence(packages, output, blockers):
             continue
         base = Path(package["manifest_path"]).parent
         section = json.dumps(item["package"])
-        config += f"\n[{section}.clarify]\nlicense = {json.dumps(item['selected_license'])}\n"
         for file in item["files"]:
             source = base / file["path"]
             if not source.is_file() or digest(source.read_bytes()) != file["sha256"]:
                 blockers.append(f"Local clarification evidence changed: {key} {file['path']}")
+        signature = (item["selected_license"], json.dumps(item["files"], sort_keys=True))
+        if item["package"] in configured:
+            if configured[item["package"]] != signature:
+                blockers.append(f"Multiple versions need separate clarification recipes: {item['package']}")
+            continue
+        configured[item["package"]] = signature
+        config += f"\n[{section}.clarify]\nlicense = {json.dumps(item['selected_license'])}\n"
+        for file in item["files"]:
             config += (f"[[{section}.clarify.files]]\npath = {json.dumps(file['path'])}\n"
                        f"checksum = {json.dumps(file['sha256'])}\n")
+            if file.get("license"):
+                config += f"license = {json.dumps(file['license'])}\n"
+    exceptions = json.loads((HERE / "declaration-exceptions.json").read_text(encoding="utf-8"))
+    for item in exceptions["packages"]:
+        key = (item["package"], item["version"])
+        if key not in selected:
+            continue
+        package = selected[key]
+        base = Path(package["manifest_path"]).parent
+        normative_record = exceptions["normative_licenses"][item["selected_license"]]
+        normative = HERE / normative_record["path"]
+        if digest(normative.read_bytes()) != normative_record["sha256"]:
+            raise RuntimeError("Normative license evidence changed")
+        if package["license"] != item["declared_license"]:
+            blockers.append(f"Reviewed declaration changed: {key}")
+            continue
+        files = []
+        for file in item["files"]:
+            source = base / file["path"]
+            if digest(source.read_bytes()) != file["sha256"]:
+                blockers.append(f"Declaration evidence changed: {key} {file['path']}")
+            files.append((source, file["path"], file["sha256"]))
+        for header in item["headers"]:
+            source = HERE / header["local_path"]
+            if (digest((base / header["source_path"]).read_bytes()) != header["source_sha256"]
+                    or digest(source.read_bytes()) != header["sha256"]):
+                blockers.append(f"Source attribution changed: {key} {header['source_path']}")
+            files.append((source, source.name, header["sha256"]))
+        files.append((normative, f"STANDARD-{item['selected_license']}.txt", normative_record["sha256"]))
+        evidence[key] = []
+        for source, name, checksum in files:
+            destination = output / "declaration-evidence" / f"{key[0]}-{key[1]}" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
+            evidence[key].append({"path": str(destination.relative_to(output)), "sha256": checksum,
+                                  "reviewed_exception": item["rationale"]})
+        if item.get("retain_source_archive"):
+            archive = retain_source_archive(package, output, blockers)
+            if archive:
+                evidence[key].append(archive)
+        destination = output / "declaration-evidence" / f"{key[0]}-{key[1]}" / "EVIDENCE.txt"
+        destination.write_text(item["rationale"] + "\nStandard text source: " + normative_record["url"]
+                               + "\nThe standard text's placeholder is intentionally unfilled.\n",
+                               encoding="utf-8")
+        section = json.dumps(item["package"])
+        config += (f"\n[{section}.clarify]\nlicense = {json.dumps(item['selected_license'])}\n"
+                   f"[[{section}.clarify.files]]\npath = {json.dumps(str(normative.resolve()))}\n"
+                   f"checksum = {json.dumps(normative_record['sha256'])}\n")
     config_path.write_text(config, encoding="utf-8")
     return evidence, config_path
+
+
+def retain_source_archive(package, output, blockers):
+    lock = tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))
+    cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
+    records = [p for p in lock["package"] if package_key(p) == package_key(package)
+               and p.get("source") == package["source"]]
+    name = f"{package['name']}-{package['version']}.crate"
+    archives = list((cargo_home / "registry" / "cache").glob("*/" + name))
+    if len(records) != 1 or not archives:
+        blockers.append(f"Missing locked source archive: {name}")
+        return None
+    archive = next((p for p in archives if digest(p.read_bytes()) == records[0]["checksum"]), None)
+    if archive is None:
+        blockers.append(f"Source archive checksum mismatch: {name}")
+        return None
+    shutil.copyfile(archive, output / name)
+    return {"path": name, "sha256": records[0]["checksum"], "unmodified_source_archive": True}
 
 
 def covered_source(packages, output, blockers):
@@ -163,9 +253,20 @@ def collect_assets(packages, output, blockers):
                                   "notice": "LUCIDE-NOTICE.txt"})
     # Local assets have no upstream crate policy to cover them. Fail for a review,
     # rather than allowing a new font/image to silently enter the binary bundle.
-    for path in sorted((ROOT / "crates").rglob("*")):
+    reviewed_assets = set()
+    for item in evidence.get("application_assets", []):
+        path = ROOT / item["path"]
+        source = ROOT / item["source"]
+        if (not path.is_file() or digest(path.read_bytes()) != item["sha256"]
+                or item["embedding"] not in source.read_text(encoding="utf-8")):
+            blockers.append(f"Application asset evidence changed: {item['path']}")
+        reviewed_assets.add(path)
+        inventory.append({**item, "notice": "SAYTWIG-LICENSE.txt"})
+    paths = list((ROOT / "crates").rglob("*")) + list((ROOT / "assets").rglob("*"))
+    for path in sorted(paths):
         if path.suffix.lower() in {".ttf", ".otf", ".woff", ".woff2", ".svg", ".png", ".ico", ".jpg"}:
-            blockers.append(f"Unreviewed application asset: {path.relative_to(ROOT)}")
+            if path not in reviewed_assets:
+                blockers.append(f"Unreviewed application asset: {path.relative_to(ROOT)}")
     write_json(output / "ASSET-INVENTORY.json", {
         "assets": inventory, "font_policy": evidence["font_policy"],
         "scope": evidence["scope"],
@@ -232,7 +333,7 @@ def generate(args):
             blockers.append(f"No packaged license/notice evidence: {package['name']} {package['version']}")
         source_texts[package_key(package)] = [
             re.sub(r"\s+", " ", (output / file["path"]).read_text(encoding="utf-8", errors="replace")).strip()
-            for file in files
+            for file in files if not file.get("unmodified_source_archive")
         ]
         inventory.append({"name": package["name"], "version": package["version"],
                           "source": package["source"], "repository": package.get("repository"),
@@ -241,11 +342,11 @@ def generate(args):
     shutil.copyfile(ROOT / "LICENSE", output / "SAYTWIG-LICENSE.txt")
     shutil.copyfile(ROOT / "Cargo.lock", output / "Cargo.lock")
     about = subprocess.run([
-        "cargo-about", "generate", "--manifest-path", "crates/app/Cargo.toml",
+        "cargo-about", "generate", "--manifest-path", "Cargo.toml", "--workspace",
         "--config", str(config_path), "--locked", "--fail", "--offline",
         "--target", args.target, *feature_args(features), "--format", "json",
     ], cwd=ROOT, capture_output=True, text=True,
-        env={**os.environ, "RAYON_NUM_THREADS": "2"})
+        env={**os.environ, "RAYON_NUM_THREADS": "2"}, timeout=600)
     # Retain diagnostics for reviewers, not for license text substitution.
     (output / "HARVEST-DIAGNOSTICS.txt").write_text(about.stderr, encoding="utf-8")
     texts = []
@@ -257,7 +358,10 @@ def generate(args):
         result = json.loads(about.stdout)
         selected_packages = {package_key(p): p for p in packages}
         for license in result["licenses"]:
-            users = sorted({package_key(u["crate"]) for u in license["used_by"]})
+            users = sorted({package_key(u["crate"]) for u in license["used_by"]
+                            if package_key(u["crate"]) in keys})
+            if not users:
+                continue
             covered.update(users)
             if not license.get("source_path"):
                 blockers.append(f"Canonical-only license text ({license['id']}): {users}")
@@ -311,7 +415,7 @@ def main():
     args = parser.parse_args()
     try:
         return generate(args)
-    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         print(f"Notice generation blocked: {error}", file=sys.stderr)
         if isinstance(error, subprocess.CalledProcessError):
             print(error.stderr, file=sys.stderr)

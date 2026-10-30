@@ -1,6 +1,6 @@
 # Contributing to Saytwig
 
-Saytwig is an early-stage, local-first dictation app. Keep changes small and
+Saytwig is an early-stage local speech recognition app. Keep changes small and
 focused on reliable recording, local recognition, deliberate text delivery, and
 clear user control. Discuss new model families or additional cloud services
 before adding them; they are outside the initial product scope.

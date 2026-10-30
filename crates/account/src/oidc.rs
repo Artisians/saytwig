@@ -85,7 +85,29 @@ impl Provider {
         fields: &[(&str, &str)],
         cancel: &CancellationToken,
     ) -> Result<TokenResponse, AccountError> {
-        read_json(self.client.post(&self.token_endpoint).form(fields), cancel).await
+        let (status, bytes) =
+            read_body(self.client.post(&self.token_endpoint).form(fields), cancel).await?;
+        if status == reqwest::StatusCode::OK {
+            return serde_json::from_slice(&bytes).map_err(|_| AccountError::Provider);
+        }
+        if matches!(
+            status,
+            reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::UNAUTHORIZED
+        ) {
+            #[derive(Deserialize)]
+            struct TokenError<'a> {
+                error: &'a str,
+            }
+            if let Ok(error) = serde_json::from_slice::<TokenError<'_>>(&bytes) {
+                return Err(match error.error {
+                    "invalid_grant" => AccountError::Reauthorize,
+                    "access_denied" => AccountError::Denied,
+                    "invalid_scope" => AccountError::Permission,
+                    _ => AccountError::Provider,
+                });
+            }
+        }
+        Err(AccountError::Provider)
     }
     pub(crate) async fn revoke(
         &self,
@@ -138,6 +160,16 @@ async fn read_json<T: serde::de::DeserializeOwned>(
     request: reqwest::RequestBuilder,
     cancel: &CancellationToken,
 ) -> Result<T, AccountError> {
+    let (status, bytes) = read_body(request, cancel).await?;
+    if status != reqwest::StatusCode::OK {
+        return Err(AccountError::Provider);
+    }
+    serde_json::from_slice(&bytes).map_err(|_| AccountError::Provider)
+}
+async fn read_body(
+    request: reqwest::RequestBuilder,
+    cancel: &CancellationToken,
+) -> Result<(reqwest::StatusCode, Zeroizing<Vec<u8>>), AccountError> {
     if cancel.is_cancelled() {
         return Err(AccountError::Cancelled);
     }
@@ -145,9 +177,7 @@ async fn read_json<T: serde::de::DeserializeOwned>(
         _ = cancel.cancelled() => return Err(AccountError::Cancelled),
         response = request.send() => response.map_err(|_| AccountError::Network)?,
     };
-    if response.status() != reqwest::StatusCode::OK {
-        return Err(AccountError::Provider);
-    }
+    let status = response.status();
     let mut bytes = Zeroizing::new(Vec::new());
     let mut stream = response.bytes_stream();
     loop {
@@ -164,7 +194,7 @@ async fn read_json<T: serde::de::DeserializeOwned>(
             None => break,
         }
     }
-    serde_json::from_slice(&bytes).map_err(|_| AccountError::Provider)
+    Ok((status, bytes))
 }
 
 #[derive(Deserialize)]

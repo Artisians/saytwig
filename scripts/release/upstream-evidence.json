@@ -503,10 +503,18 @@
         "url": "https://raw.githubusercontent.com/etemesi254/zune-image/31d81fed7551c8ccea456d9d8e2b1fd8bebb6995/LICENSE-MIT",
         "sha256": "d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745",
         "local_path": "evidence/zune-jpeg-0.5.15/LICENSE-MIT"
+      },
+      {
+        "path": "LICENSE-ZLIB",
+        "local_path": "evidence/zune-jpeg-0.5.15/LICENSE-ZLIB",
+        "url": "https://raw.githubusercontent.com/etemesi254/zune-image/31d81fed7551c8ccea456d9d8e2b1fd8bebb6995/LICENSE-ZLIB",
+        "sha256": "d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c"
       }
     ],
-    "selected_license": "MIT",
-    "selected_file": "evidence/zune-jpeg-0.5.15/LICENSE-MIT"
+    "selected_license": "Zlib",
+    "selected_file": "evidence/zune-jpeg-0.5.15/LICENSE-ZLIB",
+    "selected_start": "This software",
+    "selected_text_sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352"
   },
   {
     "package": "gpui-kit-assets",
@@ -524,5 +532,74 @@
     ],
     "selected_license": "Apache-2.0",
     "selected_file": "evidence/gpui-kit-assets-0.8.1/LICENSE-APACHE"
+  },
+  {
+    "package": "zune-inflate",
+    "version": "0.2.54",
+    "declared_license": "MIT OR Apache-2.0 OR Zlib",
+    "repository": null,
+    "commit": "69502ce83fdfecdd0beefd677e2abb3781b29d98",
+    "selected_license": "Zlib",
+    "selected_file": "evidence/zune-inflate-0.2.54/LICENSE-ZLIB",
+    "files": [
+      {
+        "path": "LICENSE-ZLIB",
+        "local_path": "evidence/zune-inflate-0.2.54/LICENSE-ZLIB",
+        "url": "https://raw.githubusercontent.com/etemesi254/zune-image/69502ce83fdfecdd0beefd677e2abb3781b29d98/LICENSE-ZLIB",
+        "sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352"
+      },
+      {
+        "path": "LICENSE.md",
+        "local_path": "evidence/zune-inflate-0.2.54/LICENSE.md",
+        "url": "https://raw.githubusercontent.com/etemesi254/zune-image/69502ce83fdfecdd0beefd677e2abb3781b29d98/LICENSE.md",
+        "sha256": "e870d7fd7819a9f0453c62798cb52ae95d148a8c91dc2de1d983f997143c72de"
+      }
+    ]
+  },
+  {
+    "package": "zune-core",
+    "version": "0.4.12",
+    "declared_license": "MIT OR Apache-2.0 OR Zlib",
+    "repository": null,
+    "commit": "f8fbb123d5ed04441e8324a555bfcda0cb1bd28f",
+    "selected_license": "Zlib",
+    "selected_file": "evidence/zune-core-0.4.12/LICENSE-ZLIB",
+    "files": [
+      {
+        "path": "LICENSE-ZLIB",
+        "local_path": "evidence/zune-core-0.4.12/LICENSE-ZLIB",
+        "url": "https://raw.githubusercontent.com/etemesi254/zune-image/f8fbb123d5ed04441e8324a555bfcda0cb1bd28f/LICENSE-ZLIB",
+        "sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352"
+      },
+      {
+        "path": "LICENSE.md",
+        "local_path": "evidence/zune-core-0.4.12/LICENSE.md",
+        "url": "https://raw.githubusercontent.com/etemesi254/zune-image/f8fbb123d5ed04441e8324a555bfcda0cb1bd28f/LICENSE.md",
+        "sha256": "c6dff146a9f31848ac296faa5a08a4253caf2c384c86f906dc99e7fc0a39cc8c"
+      }
+    ]
+  },
+  {
+    "package": "zune-jpeg",
+    "version": "0.4.21",
+    "declared_license": "MIT OR Apache-2.0 OR Zlib",
+    "repository": "https://github.com/etemesi254/zune-image/tree/dev/crates/zune-jpeg",
+    "commit": "fa2c767a01d7d9373911d0bf63e0588553d67e0e",
+    "files": [
+      {
+        "path": "LICENSE-ZLIB",
+        "local_path": "evidence/zune-jpeg-0.4.21/LICENSE-ZLIB",
+        "url": "https://raw.githubusercontent.com/etemesi254/zune-image/fa2c767a01d7d9373911d0bf63e0588553d67e0e/LICENSE-ZLIB",
+        "sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352"
+      },
+      {
+        "path": "LICENSE.md",
+        "local_path": "evidence/zune-jpeg-0.4.21/LICENSE.md",
+        "url": "https://raw.githubusercontent.com/etemesi254/zune-image/fa2c767a01d7d9373911d0bf63e0588553d67e0e/LICENSE.md",
+        "sha256": "c6dff146a9f31848ac296faa5a08a4253caf2c384c86f906dc99e7fc0a39cc8c"
+      }
+    ],
+    "selected_license": "Zlib",
+    "selected_file": "evidence/zune-jpeg-0.4.21/LICENSE-ZLIB"
   }
 ]

@@ -1,50 +1,57 @@
-# Development build status — 2026-10-29
+# Development build status, 2026-10-30
 
-Saytwig is a newly authored, unreleased local speech recognition app. The standalone
-[repository](https://github.com/Artisians/saytwig) is public; the previous Handy
-fork is unchanged. Reset/rename handoff instructions are superseded.
+Saytwig is an unreleased local speech recognition app.
 
 ## Published source and CI
 
-- Initial source: [`9fed89d`](https://github.com/Artisians/saytwig/tree/9fed89dae1b9666dd9e913ac0443888fa8a15ac2), on `nightly` (86 remotely verified files).
-- [Draft PR #1](https://github.com/Artisians/saytwig/pull/1) proposes promotion to `stable`. `stable` and `main` still contain the repository seed, not a validated app release.
-- Both initial [push CI](https://github.com/Artisians/saytwig/actions/runs/40973785994) and [PR CI](https://github.com/Artisians/saytwig/actions/runs/40973825844) passed: formatting, strict production Clippy, native Linux linking and native Windows x64/MSVC linking.
-- A successful Windows build is **not** Windows device, microphone, shortcut, paste or UI execution evidence.
-- Follow-up source changes are under review. Initial green CI does not validate a newer commit automatically. No stable release, signed installer or distributable speech runtime is published.
+- The latest published app source is [`02ef2802`](https://github.com/Artisians/saytwig/tree/02ef2802e6a66b58dc429f747d4d8eddce9b42d3). Both [push CI](https://github.com/Artisians/saytwig/actions/runs/40978906973) and [PR CI](https://github.com/Artisians/saytwig/actions/runs/40978911619) passed formatting, strict production Clippy, and native Linux x64 and Windows MSVC x64 linking.
+- [`30e0d5cd`](https://github.com/Artisians/saytwig/commit/30e0d5cdac9bd758f01e59489305f41ca18ac5d8) changes only the nightly README. `main` contains the product README; application source lives on `nightly`.
+- [Draft PR #1](https://github.com/Artisians/saytwig/pull/1) proposes promotion to `stable`. No application release has been promoted.
+- New resource limits, consumer setup, account controls, and the recording-popup fix passed local formatting, strict production Clippy, and optimized Linux linking. Hands-on inspection confirmed that Start no longer crashes. Published CI does not validate these newer files.
+- Native linking does not establish microphone, shortcut, paste, or UI behavior on Windows. No stable release or signed installer is available.
 
 ## Build and native inspection evidence
 
 Pinned Rust/Cargo 1.99.1; GPUI Kit 0.8.1 with matching gpui-pre 0.3.10.
-Workspace formatting and production-only strict Clippy passed for the integrated
-paste-enabled source before its optimized Linux build. Relevant later account,
-platform and interface changes have separate format/lint checks; a refreshed
-native debug build is in progress and is not represented by the artifact below.
-
-The paste-enabled optimized Linux executable is **41,552,320 bytes (39.6 MiB)**:
+Workspace formatting and production-only strict Clippy passed before the latest
+optimized Linux build. Cargo completed that build in 9m47s. The executable is
+**41,886,272 bytes**, about 39.9 MiB:
 
 ```text
-SHA-256 5b394883de11e9611c0fe32716b8a19caf08988df0bd72e09d3c41a14ca805e8
+SHA-256 7908b8346f9b88759498069dae8ade580b1f2f7a90b27c4ba9d16935248c7267
 ```
 
-This executable-only measurement excludes model weights, Python/PyTorch runtime
-and system libraries. It is not a Windows installer size or an old-versus-new
-performance comparison. The earlier pre-insertion executable was 41,541,568 bytes.
+This executable-only measurement excludes model weights, the Python/PyTorch
+runtime, and system libraries. It is not a Windows installer size or a performance
+comparison.
 
-The paste-enabled binary was launched on the supported **cloud Linux desktop**.
-It rendered through the existing Mesa software Vulkan driver using its documented
-non-shared-memory presentation option. Observed hands-on flows:
+The binary ran on the supported cloud Linux desktop through the existing Mesa
+software Vulkan driver. At 02:00 to 02:06 UTC, hands-on inspection established:
 
-- Missing-runtime state rendered; Start was unavailable and cloud cleanup stayed off.
-- Dictation, History and Preferences navigation worked.
-- A vocabulary preference was entered and saved; the success notice and versioned
-  local settings file agreed. No account credentials or audio were used.
-- Empty history rendered correctly.
+- The verified development runtime passed the installation check and enabled
+  **Start**. Start reached microphone acquisition without the previous GPUI panic.
+- This desktop has no ALSA capture device. The app displayed an actionable
+  microphone error, returned to idle, and allowed dismissal and another Start.
+- **Escape** during a fresh-process startup returned the app to idle without a
+  microphone error. A subsequent Start displayed the 340-by-52 recording pill
+  and reached the same microphone error. The pill disappeared on completion.
+- A later click on the pill's **Cancel** arrived after the microphone failure.
+  That button's cancellation behavior is not established by this observation.
+- Normal window close removed the app. Two later process snapshots found neither
+  this app binary nor its configured speech child. No force kill was used.
+- Cleanup stayed off. No account connection, provider request, or update contact
+  was attempted in this run.
 
-These observations concern that exact binary, not subsequent design refinements.
-Software-rendered cloud inspection does not establish native GPU performance,
-Windows behavior, screen-reader support, or complete dictation. The headless
-executor also correctly exits with a native-desktop-required message rather than
-opening microphone/account resources.
+Earlier build `ead464b1` established navigation, persisted vocabulary, visible
+keyboard focus, and the 760-by-521 layout. Its Start crash was reproduced before
+this fix. Those earlier observations are not a full repeat on the latest binary.
+The latest inspection used an 1180-by-812 window.
+
+No full microphone-to-transcript operation, startup benchmark, or RSS measurement
+was completed. Software-rendered cloud inspection does not establish native GPU
+performance, Windows behavior, or screen-reader support. The accessibility tree
+exposed only the X11 window. Headless startup exits with a native-desktop-required
+message before opening microphone or account resources.
 
 ## Speech engine observations
 
@@ -68,17 +75,23 @@ microphone, UI and Windows. Details: [speech bridge](../crates/phonon/README.md)
 - Windows shortcut-triggered paste is implemented and independently reviewed;
   manual Start remains copy-only. Cancellation/focus/modifier checks reduce races
   but cannot prove another application accepted a dispatched input batch.
-- Follow-up UI source wires explicit, default-off GitHub contact and stable-release
+- The interface has explicit, default-off GitHub contact and stable-release
   checking. It does **not** download or install updates. Only `saytwig-vX.Y.Z`
   releases are eligible. No signing keys or automatic installation are configured.
-- Consumer runtime/model installation, application packaging and full dependency
-  redistribution notices/source obligations. The development Windows speech payload
-  is approximately 665 MB; it is not a signed or redistributable runtime. In particular,
-  the bundled soundfile/libsndfile dependency still needs exact corresponding-source
-  and relinking obligations resolved before redistribution.
-- Performance audit findings include producer/event backlog and history allocation
-  bounds; policies are not proof these implementation gaps are closed. User history
-  must not be silently pruned to meet a memory target.
+- The explicit Windows x64 runtime and model installer is implemented but has not
+  run on Windows. Its pinned inputs total 472,062,622 download bytes. Interrupted
+  or unknown preparation directories still require manual recovery. See
+  [first-run setup](../scripts/phonon/FIRST_RUN_SETUP.md).
+- Native application notices pass for the current lockfile: 475 Windows packages
+  and 577 Linux packages, with zero reported blockers. Each artifact workflow must
+  regenerate notices from its own checkout. This receipt does not cover the speech
+  runtime. The soundfile/libsndfile runtime bundle still needs exact
+  corresponding-source and relinking obligations resolved before redistribution.
+- The reviewed resource changes bound command and event queues, remove full audio
+  buffer copies, and limit history rendering to 40 rows. Search still scans the
+  retained history on the UI thread. Native device calls can block inside drivers.
+  These source-level limits are not measured latency or RSS improvements. See the
+  [resource audit](../crates/phonon/RESOURCE_AUDIT.md).
 - macOS native execution is unverified. The user's computer remains out of scope.
 
 The owner chose **no automated test files/suites**. Build, formatting, lint,

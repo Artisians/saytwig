@@ -10,9 +10,14 @@ startup, warm-up, or transcription.
 
 ## Host contract
 
-1. Supply a runtime directory and its **independently trusted** `bundle.json`
-   SHA-256 to `RuntimeBundle::open`. Do not derive that trust from an adjacent
-   mutable digest file. The release distributor must pin/sign this metadata.
+1. On native Windows x64, `managed_runtime(store_root)` discovers the reviewed
+   managed bundle without network access. Only an explicit setup action calls
+   `install_runtime_requested(store_root, &cancellation, progress)`; its expected
+   inventory digest and canonical helper/asset fingerprint are compiled into
+   the app. See [first-run setup and limitations](../../scripts/phonon/FIRST_RUN_SETUP.md).
+   Development hosts can instead supply a directory and **independently trusted**
+   `bundle.json` SHA-256 to `RuntimeBundle::open`. Never derive trust from an
+   adjacent mutable digest file. These hashes are integrity pins, not signatures.
 2. For an existing model, call `verify_model`. To explicitly provision a model,
    call `install_requested(&bundle, store_root, &cancellation)`. Unknown nonempty
    directories and existing unverified model installations are not adopted or

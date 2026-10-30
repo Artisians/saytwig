@@ -5,7 +5,7 @@ use crate::{
     strings::t,
     worker::{Command, EngineState, Event, Worker},
 };
-use cleanup_service::{Consent, Model as CleanupModel};
+use cleanup_service::{CleanupError, Consent, Model as CleanupModel};
 use dictation_desktop::{
     hotkey::{HotkeyLease, ShortcutSignal},
     native::{foreground_target, NativeHotkeys},
@@ -14,8 +14,9 @@ use dictation_desktop::{
 use dictation_domain::{Generation, Phase, Transcript};
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
+    dialog::{DialogAction, DialogFooter},
     input::{Input, InputEvent, InputState},
-    Disableable, Selectable, Sizable,
+    Disableable, Selectable, Sizable, WindowExt,
 };
 use gpui_kit::{
     div, prelude::*, px, rgb, App, Context, Entity, FocusHandle, KeyBinding, Render, Subscription,
@@ -23,7 +24,77 @@ use gpui_kit::{
 };
 use phonon_service::Cancellation;
 use saytwig_account::{CancellationToken, Profile, ProfileId};
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
+
+const PLAN_NOTICE_KEY: &str = "chatgpt_plan_notice_seen_v1";
+const HISTORY_PAGE_SIZE: usize = 40;
+const HISTORY_DETAIL_CHARS: usize = 4096;
+
+#[derive(Default)]
+struct HistorySearch {
+    text: gpui_kit::SharedString,
+    query: Vec<char>,
+    prefix: Vec<usize>,
+    too_long: bool,
+}
+impl HistorySearch {
+    fn update(&mut self, text: gpui_kit::SharedString) -> bool {
+        if self.text == text {
+            return false;
+        }
+        self.too_long = text.chars().take(513).count() > 512;
+        self.query = if self.too_long {
+            Vec::new()
+        } else {
+            text.chars().flat_map(char::to_lowercase).collect()
+        };
+        self.prefix = vec![0; self.query.len()];
+        for index in 1..self.query.len() {
+            let mut matched = self.prefix[index - 1];
+            while matched > 0 && self.query[index] != self.query[matched] {
+                matched = self.prefix[matched - 1];
+            }
+            if self.query[index] == self.query[matched] {
+                matched += 1;
+            }
+            self.prefix[index] = matched;
+        }
+        self.text = text;
+        true
+    }
+    fn matches(&self, text: &str) -> bool {
+        if self.too_long {
+            return false;
+        }
+        if self.query.is_empty() {
+            return true;
+        }
+        // Stream case folding instead of allocating a lowercase copy of each entry.
+        let mut matched = 0;
+        for character in text.chars().flat_map(char::to_lowercase) {
+            while matched > 0 && character != self.query[matched] {
+                matched = self.prefix[matched - 1];
+            }
+            if character == self.query[matched] {
+                matched += 1;
+            }
+            if matched == self.query.len() {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+fn text_preview(text: &str, limit: usize) -> (String, bool) {
+    let mut characters = text.chars();
+    let mut preview: String = characters.by_ref().take(limit).collect();
+    let shortened = characters.next().is_some();
+    if shortened {
+        preview.push('…');
+    }
+    (preview, shortened)
+}
 
 gpui_kit::actions!(saytwig, [CancelDictation]);
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -36,6 +107,9 @@ enum Page {
 
 pub(crate) struct Shell {
     model: Model,
+    mark: Arc<gpui_kit::Image>,
+    history_page: usize,
+    history_search: HistorySearch,
     clipboard: Option<crate::clipboard::Clipboard>,
     cloud: Option<Cloud>,
     updates: Option<crate::updates::Updates>,
@@ -43,6 +117,8 @@ pub(crate) struct Shell {
     update_message: &'static str,
     update_release: Option<crate::updates::VerifiedRelease>,
     profiles: Vec<Profile>,
+    plan_welcome: Option<ProfileId>,
+    plan_limited: bool,
     cleanup_models: Vec<CleanupModel>,
     cleanup_model: Option<CleanupModel>,
     cleanup_profile: Option<ProfileId>,
@@ -82,7 +158,12 @@ impl Shell {
             cx.new(|cx| InputState::new(window, cx).placeholder(t("vocabulary_placeholder")));
         let search = cx.new(|cx| InputState::new(window, cx).placeholder(t("history")));
         let mut subscriptions = Vec::new();
-        subscriptions.push(cx.subscribe(&search, |_, _, _: &InputEvent, cx| cx.notify()));
+        subscriptions.push(cx.subscribe(&search, |this, input, _: &InputEvent, cx| {
+            if this.history_search.update(input.read(cx).value()) {
+                this.history_page = 0;
+            }
+            cx.notify();
+        }));
         subscriptions.push(cx.on_app_quit(|this, cx| {
             this.cancel();
             this.consent.set_enabled(false);
@@ -132,6 +213,12 @@ impl Shell {
         focus.focus(window, cx);
         Self {
             model,
+            mark: Arc::new(gpui_kit::Image::from_bytes(
+                gpui_kit::ImageFormat::Svg,
+                include_bytes!("../../../assets/saytwig.svg").to_vec(),
+            )),
+            history_page: 0,
+            history_search: HistorySearch::default(),
             clipboard: crate::clipboard::Clipboard::start().ok(),
             cloud: Cloud::start().ok(),
             updates: crate::updates::Updates::start().ok(),
@@ -139,6 +226,8 @@ impl Shell {
             update_message: "updates_off",
             update_release: None,
             profiles: Vec::new(),
+            plan_welcome: None,
+            plan_limited: false,
             cleanup_models: Vec::new(),
             cleanup_model: None,
             cleanup_profile: None,
@@ -172,12 +261,36 @@ impl Shell {
         }
     }
     fn send(&mut self, command: Command) {
-        if self
-            .worker
-            .as_ref()
-            .is_none_or(|worker| worker.commands.send(command).is_err())
-        {
-            self.model.notice = Some("worker_failed");
+        let result = match &self.worker {
+            Some(worker) => worker.commands.send(command),
+            None => Err(std::sync::mpsc::TrySendError::Disconnected(command)),
+        };
+        let Err(error) = result else { return };
+        // Recover the owned payload without logging private settings or text.
+        let (command, notice) = match error {
+            std::sync::mpsc::TrySendError::Full(command) => (command, "worker_busy"),
+            std::sync::mpsc::TrySendError::Disconnected(command) => (command, "worker_failed"),
+        };
+        match command {
+            Command::Start { cancellation, .. } | Command::Install(cancellation) => {
+                cancellation.cancel();
+                self.cancel();
+                self.model.installing = false;
+                self.model.install_cancelling = false;
+                self.model.setup_progress = None;
+                self.model.notice = Some(notice);
+            }
+            Command::Stop => {
+                // A disconnected actor must not leave the capture running.
+                self.cancel();
+                self.model.notice = Some(notice);
+            }
+            Command::SaveTranscript { .. } => {
+                // The accepted final transcript stays in model.last for Copy.
+                self.model.notice = Some("history_not_saved");
+            }
+            Command::SaveSettings(_) => self.model.notice = Some("settings_not_saved"),
+            _ => self.model.notice = Some(notice),
         }
     }
     fn poll(&mut self, cx: &mut Context<Self>) {
@@ -197,6 +310,12 @@ impl Shell {
             .unwrap_or_default();
         let mut changed = pressed || !events.is_empty();
         for event in events {
+            if matches!(&event, Event::Notice("setup_recovery_required")) {
+                self.setup_help = true;
+            }
+            if matches!(&event, Event::Loaded(..) | Event::History(_)) {
+                self.history_page = 0;
+            }
             match &event {
                 Event::Recording(generation, cancel) => {
                     if self.model.session.generation() == Some(*generation)
@@ -243,7 +362,7 @@ impl Shell {
             .unwrap_or_default();
         changed |= !cloud_events.is_empty();
         for (request, event) in cloud_events {
-            if !matches!(event, CloudEvent::Cleaned(..)) && self.cloud_active != Some(request) {
+            if !matches!(event, CloudEvent::Cleaned { .. }) && self.cloud_active != Some(request) {
                 continue;
             }
             match event {
@@ -258,6 +377,8 @@ impl Shell {
                         .find(|p| p.active && p.connected)
                         .map(|p| (&p.id, p.plan_use_granted));
                     if old != new {
+                        self.plan_limited = false;
+                        self.plan_welcome = None;
                         self.disable_cleanup();
                         self.cleanup_models.clear();
                         self.cleanup_model = None;
@@ -276,24 +397,43 @@ impl Shell {
                         self.cleanup_profile = Some(profile);
                     }
                 }
+                CloudEvent::PlanConnected(profile) => {
+                    if !self.plan_notice_seen() {
+                        self.plan_welcome = Some(profile);
+                    }
+                }
                 CloudEvent::Notice(notice) => self.model.notice = Some(notice),
                 CloudEvent::Finished => {
                     self.account_busy = false;
                     self.account_cancel = None;
                 }
-                CloudEvent::Cleaned(generation, cleaned) => {
-                    let failed = cleaned.is_none();
+                CloudEvent::Cleaned {
+                    generation,
+                    profile,
+                    result,
+                } => {
+                    let limited = result == Err(CleanupError::UsageLimit)
+                        && self.cleanup_profile.as_ref() == Some(&profile)
+                        && self.profiles.iter().any(|p| {
+                            p.id == profile && p.active && p.connected && p.plan_use_granted
+                        });
+                    let failed = result.is_err();
+                    let cleaned = result.ok();
                     if self
                         .model
                         .session
                         .cleanup_completed(generation, cleaned)
                         .is_ok()
                     {
-                        if failed {
-                            self.model.notice = Some("cleanup_failed");
-                        }
                         if let Some(result) = self.model.session.take_transcript() {
                             self.complete_result(generation, result);
+                        }
+                        if limited {
+                            self.disable_cleanup();
+                            self.plan_limited = true;
+                            self.model.notice = Some("plan_usage_limited");
+                        } else if failed {
+                            self.model.notice = Some("cleanup_failed");
                         }
                     }
                     if self
@@ -401,30 +541,139 @@ impl Shell {
         });
         self.cancellation = None;
     }
-    fn send_cloud(&mut self, command: CloudCommand) {
-        let Some(request) = self.cloud_sequence.checked_add(1) else {
-            self.model.notice = Some("account_unavailable");
-            return;
-        };
-        self.cloud_sequence = request;
-        self.cloud_active = Some(request);
-        self.account_busy = true;
-        if self
-            .cloud
-            .as_ref()
-            .is_none_or(|cloud| cloud.commands.send((request, command)).is_err())
-        {
-            self.account_busy = false;
-            self.model.notice = Some("account_unavailable");
-            if self.model.session.phase() == Phase::Cleaning {
-                if let Some(generation) = self.model.session.generation() {
-                    let _ = self.model.session.cleanup_completed(generation, None);
+    fn reject_cloud(&mut self, command: CloudCommand) {
+        match command {
+            CloudCommand::Clean {
+                generation, cancel, ..
+            } => {
+                cancel.cancel();
+                if self
+                    .model
+                    .session
+                    .cleanup_completed(generation, None)
+                    .is_ok()
+                {
                     if let Some(result) = self.model.session.take_transcript() {
                         self.complete_result(generation, result);
                     }
+                    self.model.notice = Some("cleanup_failed");
+                }
+                if self
+                    .cleanup_cancel
+                    .as_ref()
+                    .is_some_and(|(owner, _)| *owner == generation)
+                {
+                    self.cleanup_cancel = None;
                 }
             }
+            CloudCommand::SignIn(_, cancel)
+            | CloudCommand::EnablePlanUse(_, cancel)
+            | CloudCommand::SignOut(_, cancel)
+            | CloudCommand::Models(cancel)
+            | CloudCommand::ManageUsage(cancel) => cancel.cancel(),
+            CloudCommand::Accounts | CloudCommand::Activate(_) => {}
         }
+    }
+    fn send_cloud(&mut self, command: CloudCommand) {
+        if self.account_busy {
+            self.reject_cloud(command);
+            return;
+        }
+        let Some(request) = self.cloud_sequence.checked_add(1) else {
+            self.model.notice = Some("account_unavailable");
+            self.reject_cloud(command);
+            return;
+        };
+        let cancel = match &command {
+            CloudCommand::SignIn(_, cancel)
+            | CloudCommand::EnablePlanUse(_, cancel)
+            | CloudCommand::SignOut(_, cancel)
+            | CloudCommand::Models(cancel)
+            | CloudCommand::ManageUsage(cancel) => Some(cancel.clone()),
+            CloudCommand::Accounts | CloudCommand::Activate(_) | CloudCommand::Clean { .. } => None,
+        };
+        let outcome = match &self.cloud {
+            Some(cloud) => cloud.commands.try_send((request, command)),
+            None => Err(std::sync::mpsc::TrySendError::Disconnected((
+                request, command,
+            ))),
+        };
+        match outcome {
+            Ok(()) => {
+                self.account_cancel = cancel;
+                self.cloud_sequence = request;
+                self.cloud_active = Some(request);
+                self.account_busy = true;
+            }
+            Err(
+                std::sync::mpsc::TrySendError::Full((_, command))
+                | std::sync::mpsc::TrySendError::Disconnected((_, command)),
+            ) => {
+                self.model.notice = Some("account_unavailable");
+                self.reject_cloud(command);
+            }
+        }
+    }
+    fn plan_notice_seen(&self) -> bool {
+        self.model
+            .settings
+            .extra
+            .get(PLAN_NOTICE_KEY)
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+    }
+    fn manage_usage(&mut self) {
+        if self.account_busy {
+            return;
+        }
+        let cancel = CancellationToken::new();
+
+        self.send_cloud(CloudCommand::ManageUsage(cancel));
+    }
+    fn show_plan_welcome(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.model.settings_loaded {
+            return;
+        }
+        let Some(profile) = self.plan_welcome.take() else {
+            return;
+        };
+        let parent = cx.entity().downgrade();
+        window.defer(cx, move |window, cx| {
+            let Some(shell) = parent.upgrade() else {
+                return;
+            };
+            let current = shell.read(cx);
+            if current.plan_notice_seen()
+                || !current
+                    .profiles
+                    .iter()
+                    .any(|p| p.id == profile && p.active && p.connected && p.plan_use_granted)
+            {
+                return;
+            }
+            window.open_dialog(cx, move |dialog, _, _| {
+                let parent = parent.clone();
+                dialog
+                    .title(t("plan_welcome_title"))
+                    .child(div().text_sm().child(t("plan_welcome_body")))
+                    .footer(
+                        DialogFooter::new()
+                            .child(DialogAction::new().child(
+                                Button::new("plan-welcome-ok").primary().label(t("got_it")),
+                            )),
+                    )
+                    .on_close(move |_, _, cx| {
+                        let _ = parent.update(cx, |this, cx| {
+                            this.model
+                                .settings
+                                .extra
+                                .insert(PLAN_NOTICE_KEY.into(), true.into());
+                            this.send(Command::SaveSettings(this.model.settings.clone()));
+                            cx.notify();
+                        });
+                    })
+            });
+        });
     }
     fn disable_cleanup(&mut self) {
         self.consent.set_enabled(false);
@@ -439,8 +688,18 @@ impl Shell {
     }
     fn sync_overlay(&mut self, cx: &mut Context<Self>) {
         if self.model.active() {
+            let Some(generation) = self.model.session.generation() else {
+                return;
+            };
+            let phase = self.model.session.phase();
             if let Some((_, view)) = &self.overlay {
-                view.update(cx, |_, cx| cx.notify());
+                view.update(cx, |pill, cx| {
+                    if pill.phase != phase || pill.generation != generation {
+                        pill.phase = phase;
+                        pill.generation = generation;
+                        cx.notify();
+                    }
+                });
                 return;
             }
             let mut bounds =
@@ -463,7 +722,13 @@ impl Shell {
                 app_id: Some("com.saytwig.desktop".into()),
                 ..Default::default()
             };
-            match gpui_kit::open_window(options, cx, |_, cx| cx.new(|_| RecordingPill { parent })) {
+            match gpui_kit::open_window(options, cx, move |_, cx| {
+                cx.new(|_| RecordingPill {
+                    parent,
+                    phase,
+                    generation,
+                })
+            }) {
                 Ok(window) => self.overlay = Some(window),
                 Err(_) => self.model.notice = Some("overlay_unavailable"),
             }
@@ -518,6 +783,9 @@ impl Shell {
         }
     }
     pub(crate) fn cancel(&mut self) {
+        if self.model.installing {
+            self.model.install_cancelling = true;
+        }
         self.cancel_delivery();
         if let Some((_, cancel)) = self.capture_cancel.take() {
             cancel.cancel();
@@ -602,6 +870,7 @@ impl Shell {
             .items_center()
             .gap_1()
             .pb_2()
+            .child(gpui_kit::img(self.mark.clone()).w(px(28.)).h(px(28.)))
             .child(
                 div()
                     .mr_4()
@@ -802,7 +1071,46 @@ impl Shell {
                     ),
             )
     }
+    fn begin_install(&mut self) {
+        if self.model.active() || self.model.installing {
+            return;
+        }
+        let cancellation = Cancellation::new();
+        self.cancellation = Some(cancellation.clone());
+        self.model.installing = true;
+        self.model.install_cancelling = false;
+        self.model.setup_progress = None;
+        self.model.notice = None;
+        self.send(Command::Install(cancellation));
+    }
+    fn setup_status(&self) -> String {
+        if self.model.install_cancelling {
+            return t("setup_cancelling").into();
+        }
+        if !self.model.installing {
+            return self.engine_label().into();
+        }
+        match self.model.setup_progress.as_ref() {
+            Some(phonon_service::SetupProgress::Downloading {
+                completed_assets,
+                total_assets,
+            }) => {
+                format!(
+                    "{} {}/{}",
+                    t("setup_downloading"),
+                    completed_assets,
+                    total_assets
+                )
+            }
+            Some(phonon_service::SetupProgress::Preparing) => t("setup_preparing").into(),
+            Some(phonon_service::SetupProgress::Verifying) => t("setup_verifying").into(),
+            Some(phonon_service::SetupProgress::Ready) => t("setup_model").into(),
+            None => t("setup_starting").into(),
+        }
+    }
     fn setup(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let needs_runtime = self.model.engine == EngineState::MissingRuntime;
+        let native_setup = cfg!(all(target_os = "windows", target_arch = "x86_64"));
         div()
             .flex()
             .flex_col()
@@ -816,12 +1124,16 @@ impl Shell {
                     .gap_2()
                     .items_center()
                     .flex_wrap()
-                    .child(div().flex_1().text_sm().child(self.engine_label()))
+                    .child(div().flex_1().text_sm().child(self.setup_status()))
                     .child(
                         Button::new("setup-help")
                             .ghost()
                             .small()
-                            .label(t("setup_details"))
+                            .label(t(if needs_runtime && native_setup {
+                                "setup_review"
+                            } else {
+                                "setup_details"
+                            }))
                             .selected(self.setup_help)
                             .toggled(self.setup_help)
                             .on_click(cx.listener(|this, _, _, cx| {
@@ -833,17 +1145,10 @@ impl Shell {
                         el.child(
                             Button::new("install-model")
                                 .primary()
-                                .label(t(if self.model.installing {
-                                    "installing"
-                                } else {
-                                    "install"
-                                }))
-                                .disabled(self.model.installing)
+                                .label(t("install"))
+                                .disabled(self.model.installing || self.model.active())
                                 .on_click(cx.listener(|this, _, _, cx| {
-                                    let cancel = Cancellation::new();
-                                    this.cancellation = Some(cancel.clone());
-                                    this.model.installing = true;
-                                    this.send(Command::Install(cancel));
+                                    this.begin_install();
                                     cx.notify();
                                 })),
                         )
@@ -853,6 +1158,7 @@ impl Shell {
                             Button::new("cancel-install")
                                 .ghost()
                                 .label(t("cancel"))
+                                .disabled(self.model.install_cancelling)
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.cancel();
                                     cx.notify();
@@ -871,17 +1177,58 @@ impl Shell {
                     ),
             )
             .when(self.setup_help, |el| {
-                el.child(div().text_sm().text_color(rgb(0xb3b3b3)).child(t(
-                    if self.model.engine == EngineState::MissingModel {
-                        "install_note"
-                    } else {
-                        "runtime_missing"
-                    },
-                )))
+                if needs_runtime && native_setup {
+                    el.child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_2()
+                            .text_sm()
+                            .text_color(rgb(0xb3b3b3))
+                            .child(t("setup_download_details"))
+                            .child(t("setup_sources"))
+                            .child(t("setup_disk"))
+                            .child(t("setup_prerequisite"))
+                            .when(self.model.notice == Some("setup_recovery_required"), |el| {
+                                el.child(t("setup_recovery_location"))
+                                    .child(t("setup_recovery_instructions"))
+                            })
+                            .child(
+                                Button::new("download-runtime-model")
+                                    .primary()
+                                    .label(t("setup_download"))
+                                    .disabled(self.model.installing || self.model.active())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.begin_install();
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                } else {
+                    el.child(div().text_sm().text_color(rgb(0xb3b3b3)).child(t(
+                        if self.model.engine == EngineState::MissingModel {
+                            "install_note"
+                        } else if needs_runtime {
+                            "setup_unsupported"
+                        } else {
+                            "runtime_missing"
+                        },
+                    )))
+                }
             })
     }
     fn history(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let query = self.search.read(cx).value().to_lowercase();
+        let mut matches = self
+            .model
+            .history
+            .entries
+            .iter()
+            .enumerate()
+            .rev()
+            .filter(|(_, entry)| self.history_search.matches(&entry.original))
+            .skip(self.history_page.saturating_mul(HISTORY_PAGE_SIZE));
+        let rows: Vec<_> = matches.by_ref().take(HISTORY_PAGE_SIZE).collect();
+        let has_next = matches.next().is_some();
         let chosen = self
             .selected
             .and_then(|index| self.model.history.entries.get(index));
@@ -891,8 +1238,19 @@ impl Shell {
             .flex_1()
             .gap_3()
             .child(Input::new(&self.search).aria_label(t("history")))
-            .when(self.model.history.entries.is_empty(), |el| {
-                el.child(div().py_8().child(t("no_history")))
+            .when(self.history_search.too_long, |el| {
+                el.child(t("history_search_limit"))
+            })
+            .when(rows.is_empty() && !self.history_search.too_long, |el| {
+                el.child(
+                    div()
+                        .py_8()
+                        .child(t(if self.model.history.entries.is_empty() {
+                            "no_history"
+                        } else {
+                            "history_no_matches"
+                        })),
+                )
             })
             .child(
                 div()
@@ -900,45 +1258,63 @@ impl Shell {
                     .overflow_y_scroll()
                     .flex_1()
                     .min_h(px(90.))
-                    .children(
-                        self.model
-                            .history
-                            .entries
-                            .iter()
-                            .enumerate()
-                            .rev()
-                            .filter(|(_, entry)| entry.original.to_lowercase().contains(&query))
-                            .map(|(index, entry)| {
-                                let preview: String = entry
-                                    .cleaned
-                                    .as_deref()
-                                    .unwrap_or(&entry.original)
-                                    .chars()
-                                    .take(100)
-                                    .collect();
-                                Button::new(("history-entry", index))
-                                    .ghost()
-                                    .label(preview)
-                                    .w_full()
-                                    .selected(self.selected == Some(index))
-                                    .toggled(self.selected == Some(index))
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.selected = Some(index);
-                                        cx.notify();
-                                    }))
-                            }),
-                    ),
+                    .children(rows.into_iter().map(|(index, entry)| {
+                        let (preview, _) =
+                            text_preview(entry.cleaned.as_deref().unwrap_or(&entry.original), 100);
+                        Button::new(("history-entry", index))
+                            .ghost()
+                            .label(preview)
+                            .w_full()
+                            .selected(self.selected == Some(index))
+                            .toggled(self.selected == Some(index))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.selected = Some(index);
+                                cx.notify();
+                            }))
+                    })),
             )
+            .when(self.history_page > 0 || has_next, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .gap_2()
+                        .items_center()
+                        .child(
+                            Button::new("history-previous")
+                                .ghost()
+                                .small()
+                                .label(t("previous"))
+                                .disabled(self.history_page == 0)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.history_page = this.history_page.saturating_sub(1);
+                                    cx.notify();
+                                })),
+                        )
+                        .child(div().text_sm().child(format!(
+                            "{} {}",
+                            t("page"),
+                            self.history_page.saturating_add(1)
+                        )))
+                        .child(
+                            Button::new("history-next")
+                                .ghost()
+                                .small()
+                                .label(t("next"))
+                                .disabled(!has_next)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.history_page = this.history_page.saturating_add(1);
+                                    cx.notify();
+                                })),
+                        ),
+                )
+            })
             .when_some(chosen, |el, entry| {
                 let text = if self.show_original {
-                    entry.original.clone()
+                    &entry.original
                 } else {
-                    entry
-                        .cleaned
-                        .as_deref()
-                        .unwrap_or(&entry.original)
-                        .to_owned()
+                    entry.cleaned.as_deref().unwrap_or(&entry.original)
                 };
+                let (preview, shortened) = text_preview(text, HISTORY_DETAIL_CHARS);
                 el.child(
                     div()
                         .id("selected-history")
@@ -947,13 +1323,32 @@ impl Shell {
                         .border_t_1()
                         .border_color(rgb(0x303030))
                         .pt_3()
-                        .child(text.clone()),
+                        .child(preview),
                 )
+                .when(shortened, |el| {
+                    el.child(div().text_xs().child(t("history_preview_shortened")))
+                })
                 .child(
                     Button::new("copy-history")
                         .ghost()
                         .label(t("copy"))
-                        .on_click(cx.listener(move |this, _, _, cx| this.copy(text.clone(), cx))),
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            if let Some(entry) = this
+                                .selected
+                                .and_then(|index| this.model.history.entries.get(index))
+                            {
+                                let text = if this.show_original {
+                                    entry.original.clone()
+                                } else {
+                                    entry
+                                        .cleaned
+                                        .as_deref()
+                                        .unwrap_or(&entry.original)
+                                        .to_owned()
+                                };
+                                this.copy(text, cx);
+                            }
+                        })),
                 )
                 .when(entry.cleaned.is_some(), |el| {
                     el.child(
@@ -1318,7 +1713,7 @@ impl Shell {
                                 this.cleanup_model = None;
                                 this.cleanup_profile = None;
                                 let cancel = CancellationToken::new();
-                                this.account_cancel = Some(cancel.clone());
+
                                 this.send_cloud(CloudCommand::SignIn(None, cancel));
                                 cx.notify();
                             })),
@@ -1375,7 +1770,7 @@ impl Shell {
                                     this.cleanup_model = None;
                                     this.cleanup_profile = None;
                                     let cancel = CancellationToken::new();
-                                    this.account_cancel = Some(cancel.clone());
+
                                     this.send_cloud(CloudCommand::EnablePlanUse(
                                         plan_id.clone(),
                                         cancel,
@@ -1399,7 +1794,7 @@ impl Shell {
                                 this.cleanup_model = None;
                                 this.cleanup_profile = None;
                                 let cancel = CancellationToken::new();
-                                this.account_cancel = Some(cancel.clone());
+
                                 this.send_cloud(CloudCommand::SignIn(
                                     Some(retry_id.clone()),
                                     cancel,
@@ -1418,7 +1813,7 @@ impl Shell {
                                 this.cleanup_model = None;
                                 this.cleanup_profile = None;
                                 let cancel = CancellationToken::new();
-                                this.account_cancel = Some(cancel.clone());
+
                                 this.send_cloud(CloudCommand::SignOut(logout_id.clone(), cancel));
                                 cx.notify();
                             })),
@@ -1466,6 +1861,34 @@ impl Shell {
                     .pt_3()
                     .child(t("cleanup_model")),
             )
+            .when(connected, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .flex_wrap()
+                        .gap_2()
+                        .child(div().text_sm().child(t(if enabled {
+                            "using_chatgpt_plan"
+                        } else {
+                            "plan_sharing_off"
+                        })))
+                        .child(
+                            Button::new("manage-plan-usage")
+                                .ghost()
+                                .small()
+                                .label(t("manage_usage"))
+                                .disabled(self.account_busy)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.manage_usage();
+                                    cx.notify();
+                                })),
+                        ),
+                )
+            })
+            .when(self.plan_limited, |el| {
+                el.child(div().text_sm().child(t("plan_usage_limited")))
+            })
             .child(
                 Button::new("load-cleanup-models")
                     .ghost()
@@ -1474,7 +1897,7 @@ impl Shell {
                     .on_click(cx.listener(|this, _, _, cx| {
                         this.disable_cleanup();
                         let cancel = CancellationToken::new();
-                        this.account_cancel = Some(cancel.clone());
+
                         this.send_cloud(CloudCommand::Models(cancel));
                         cx.notify();
                     })),
@@ -1521,6 +1944,7 @@ impl Shell {
                         if this.model.session.cleanup_enabled() {
                             this.disable_cleanup();
                         } else {
+                            this.plan_limited = false;
                             this.consent.set_enabled(true);
                             this.model.session.set_cleanup_enabled(true);
                         }
@@ -1531,6 +1955,7 @@ impl Shell {
 }
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.show_plan_welcome(window, cx);
         if self.sync_inputs {
             self.sync_inputs = false;
             let shortcut = self
@@ -1596,6 +2021,19 @@ impl Render for Shell {
                         .bg(rgb(0x222222))
                         .rounded_md()
                         .child(div().flex_1().text_sm().child(t(key)))
+                        .when(key == "plan_usage_limited", |el| {
+                            el.child(
+                                Button::new("notice-manage-usage")
+                                    .ghost()
+                                    .small()
+                                    .label(t("manage_usage"))
+                                    .disabled(self.account_busy)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.manage_usage();
+                                        cx.notify();
+                                    })),
+                            )
+                        })
                         .child(
                             Button::new("dismiss-notice")
                                 .ghost()
@@ -1634,16 +2072,22 @@ pub(crate) fn bind_keys(cx: &mut App) {
 
 struct RecordingPill {
     parent: gpui_kit::WeakEntity<Shell>,
+    phase: Phase,
+    generation: Generation,
 }
 impl Render for RecordingPill {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let Some(parent) = self.parent.upgrade() else {
-            return div().into_any_element();
-        };
-        let state = parent.read(cx);
-        let label = state.phase_label();
-        let recording = state.model.session.phase() == Phase::Recording;
-        let stop_parent = parent.clone();
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        // Opening this window may render it inside Shell.update. Never read Shell here.
+        let label = t(match self.phase {
+            Phase::Preparing => "preparing",
+            Phase::Recording => "recording",
+            Phase::Transcribing => "transcribing",
+            Phase::Cleaning => "cleaning",
+            _ => "idle",
+        });
+        let generation = self.generation;
+        let stop_parent = self.parent.clone();
+        let cancel_parent = self.parent.clone();
         div()
             .flex()
             .items_center()
@@ -1655,17 +2099,24 @@ impl Render for RecordingPill {
             .text_color(rgb(0xf2f2f2))
             .text_size(px(13.))
             .child(div().flex_1().child(label))
-            .when(recording, |el| {
+            .when(self.phase == Phase::Recording, |el| {
                 el.child(
                     Button::new("overlay-stop")
                         .ghost()
                         .small()
                         .label(t("stop"))
                         .on_click(move |_, _, cx| {
-                            stop_parent.update(cx, |this, cx| {
-                                this.send(Command::Stop);
-                                cx.notify();
-                            })
+                            let parent = stop_parent.clone();
+                            cx.defer(move |cx| {
+                                let _ = parent.update(cx, |this, cx| {
+                                    if this.model.session.generation() == Some(generation)
+                                        && this.model.session.phase() == Phase::Recording
+                                    {
+                                        this.send(Command::Stop);
+                                        cx.notify();
+                                    }
+                                });
+                            });
                         }),
                 )
             })
@@ -1675,12 +2126,18 @@ impl Render for RecordingPill {
                     .small()
                     .label(t("cancel"))
                     .on_click(move |_, _, cx| {
-                        parent.update(cx, |this, cx| {
-                            this.cancel();
-                            cx.notify();
-                        })
+                        let parent = cancel_parent.clone();
+                        cx.defer(move |cx| {
+                            let _ = parent.update(cx, |this, cx| {
+                                if this.model.session.generation() == Some(generation)
+                                    && this.model.active()
+                                {
+                                    this.cancel();
+                                    cx.notify();
+                                }
+                            });
+                        });
                     }),
             )
-            .into_any_element()
     }
 }

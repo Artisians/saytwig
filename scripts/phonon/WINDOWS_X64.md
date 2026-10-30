@@ -64,7 +64,10 @@ for a regenerated bundle. Do not label this directory an MSI/EXE installer.
   `._pth` file intentionally omits `import site`; do not loosen isolation to make
   an import succeed. Model reconstruction and inference operate offline after
   explicit provisioning, with the pinned local files.
-- For a reviewed local development build, supply the absolute runtime directory,
+- Current source also has an explicit Windows first-run download/setup flow;
+  see [its integrity, space and recovery limitations](FIRST_RUN_SETUP.md). It
+  does not automatically fetch on startup and is not yet native-Windows-verified.
+- For an optional reviewed local development override, supply the absolute runtime directory,
   its independently known digest and a model-store directory to the existing app:
 
 ```powershell
@@ -74,8 +77,10 @@ $env:SAYTWIG_MODEL_STORE = "$env:LOCALAPPDATA\Saytwig\models"
 .\saytwig.exe
 ```
 
-The app does not implicitly download a missing runtime. The model install action
-is explicit and refuses an unrecognized nonempty store or unknown existing model
+The app does not implicitly download a missing runtime. Current source discovers
+its managed runtime under the application data directory, with an explicit setup
+consent action for a missing Windows runtime and model. The model-only action
+is also explicit and refuses an unrecognized nonempty store or unknown existing model
 files. A supplied preinstalled model must be the pinned three-file installation
 under `phonon-2.5-en`. App and runtime architecture checks do not replace a real
 first-run/upgrade/permission/inference inspection on the target machine.

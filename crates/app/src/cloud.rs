@@ -1,13 +1,21 @@
 //! Explicit account actions and transcript-sharing jobs on an owned runtime thread.
-use cleanup_service::{CleanupClient, Model, Permit};
+use cleanup_service::{CleanupClient, CleanupError, Model, Permit};
 use dictation_domain::Generation;
 use saytwig_account::{
     AccountError, AccountManager, CancellationToken, LogoutOutcome, Profile, ProfileId,
 };
-use std::{sync::mpsc, thread};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    thread,
+    time::Duration,
+};
 
 pub(crate) enum Command {
     Accounts,
+    ManageUsage(CancellationToken),
     SignIn(Option<ProfileId>, CancellationToken),
     EnablePlanUse(ProfileId, CancellationToken),
     Activate(ProfileId),
@@ -21,24 +29,31 @@ pub(crate) enum Command {
         permit: Permit,
         cancel: CancellationToken,
     },
-    Shutdown,
 }
 pub(crate) enum Event {
     Profiles(Vec<Profile>),
     Models(ProfileId, Vec<Model>),
-    Cleaned(Generation, Option<String>),
+    PlanConnected(ProfileId),
+    Cleaned {
+        generation: Generation,
+        profile: ProfileId,
+        result: Result<String, CleanupError>,
+    },
     Notice(&'static str),
     Finished,
 }
 pub(crate) struct Cloud {
-    pub(crate) commands: mpsc::Sender<(u64, Command)>,
+    pub(crate) commands: mpsc::SyncSender<(u64, Command)>,
     pub(crate) events: mpsc::Receiver<(u64, Event)>,
     thread: Option<thread::JoinHandle<()>>,
+    shutdown: Arc<AtomicBool>,
 }
 impl Cloud {
     pub(crate) fn start() -> std::io::Result<Self> {
-        let (commands, input) = mpsc::channel();
-        let (output, events) = mpsc::channel();
+        let (commands, input) = mpsc::sync_channel(2);
+        let (output, events) = mpsc::sync_channel(8);
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let stopping = shutdown.clone();
         let thread = thread::Builder::new()
             .name("saytwig-accounts".into())
             .spawn(move || {
@@ -48,18 +63,33 @@ impl Cloud {
                 {
                     Ok(runtime) => runtime,
                     Err(_) => {
-                        let _ = output.send((0, Event::Notice("account_unavailable")));
+                        let _ = output.try_send((0, Event::Notice("account_unavailable")));
                         return;
                     }
                 };
                 let mut manager = None;
-                while let Ok((id, command)) = input.recv() {
+                while !stopping.load(Ordering::Acquire) {
+                    let (id, command) = match input.recv_timeout(Duration::from_millis(100)) {
+                        Ok(command) => command,
+                        Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                        Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    };
+                    if stopping.load(Ordering::Acquire) {
+                        break;
+                    }
                     let output = Output {
                         id,
                         sender: output.clone(),
+                        stopping: stopping.clone(),
                     };
-                    if matches!(command, Command::Shutdown) {
-                        break;
+                    if let Command::ManageUsage(cancel) = command {
+                        if !cancel.is_cancelled()
+                            && open::that_detached("https://chatgpt.com/settings/usage").is_err()
+                        {
+                            let _ = output.send(Event::Notice("usage_browser_failed"));
+                        }
+                        let _ = output.send(Event::Finished);
+                        continue;
                     }
                     runtime.block_on(async {
                         if manager.is_none() {
@@ -67,8 +97,17 @@ impl Cloud {
                                 Ok(opened) => manager = Some(opened),
                                 Err(error) => {
                                     let _ = output.send(Event::Notice(error_key(error)));
-                                    if let Command::Clean { generation, .. } = command {
-                                        let _ = output.send(Event::Cleaned(generation, None));
+                                    if let Command::Clean {
+                                        generation,
+                                        profile,
+                                        ..
+                                    } = command
+                                    {
+                                        let _ = output.send(Event::Cleaned {
+                                            generation,
+                                            profile,
+                                            result: Err(CleanupError::Credential),
+                                        });
                                     }
                                     let _ = output.send(Event::Finished);
                                     return;
@@ -91,10 +130,11 @@ impl Cloud {
             commands,
             events,
             thread: Some(thread),
+            shutdown,
         })
     }
     pub(crate) fn shutdown(&mut self) -> Option<thread::JoinHandle<()>> {
-        let _ = self.commands.send((0, Command::Shutdown));
+        self.shutdown.store(true, Ordering::Release);
         self.thread.take()
     }
 }
@@ -105,11 +145,23 @@ impl Drop for Cloud {
 }
 struct Output {
     id: u64,
-    sender: mpsc::Sender<(u64, Event)>,
+    sender: mpsc::SyncSender<(u64, Event)>,
+    stopping: Arc<AtomicBool>,
 }
 impl Output {
     fn send(&self, event: Event) -> Result<(), mpsc::SendError<(u64, Event)>> {
-        self.sender.send((self.id, event))
+        let mut pending = (self.id, event);
+        loop {
+            if self.stopping.load(Ordering::Acquire) {
+                return Err(mpsc::SendError(pending));
+            }
+            match self.sender.try_send(pending) {
+                Ok(()) => return Ok(()),
+                Err(mpsc::TrySendError::Disconnected(event)) => return Err(mpsc::SendError(event)),
+                Err(mpsc::TrySendError::Full(event)) => pending = event,
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
     }
 }
 async fn profiles(manager: &AccountManager, output: &Output) {
@@ -135,10 +187,18 @@ async fn perform(manager: &AccountManager, command: Command, output: &Output) {
                 manager.complete_sign_in(pending, &cancel).await
             }
             .await;
-            if let Err(error) = outcome {
-                let _ = output.send(Event::Notice(error_key(error)));
-            }
+            let connected = match outcome {
+                Ok(profile) if profile.connected && profile.plan_use_granted => Some(profile.id),
+                Ok(_) => None,
+                Err(error) => {
+                    let _ = output.send(Event::Notice(error_key(error)));
+                    None
+                }
+            };
             profiles(manager, output).await;
+            if let Some(profile) = connected {
+                let _ = output.send(Event::PlanConnected(profile));
+            }
         }
         Command::EnablePlanUse(profile, cancel) => {
             let outcome = async {
@@ -151,10 +211,18 @@ async fn perform(manager: &AccountManager, command: Command, output: &Output) {
                 manager.complete_sign_in(pending, &cancel).await
             }
             .await;
-            if let Err(error) = outcome {
-                let _ = output.send(Event::Notice(error_key(error)));
-            }
+            let connected = match outcome {
+                Ok(profile) if profile.connected && profile.plan_use_granted => Some(profile.id),
+                Ok(_) => None,
+                Err(error) => {
+                    let _ = output.send(Event::Notice(error_key(error)));
+                    None
+                }
+            };
             profiles(manager, output).await;
+            if let Some(profile) = connected {
+                let _ = output.send(Event::PlanConnected(profile));
+            }
         }
         Command::Activate(profile) => {
             if let Err(error) = manager.activate(&profile).await {
@@ -207,18 +275,22 @@ async fn perform(manager: &AccountManager, command: Command, output: &Output) {
             let result = match manager.authorized_bearer(&cancel).await {
                 Ok(lease) if lease.profile_id == profile => match CleanupClient::new() {
                     Ok(client) => {
-                        tokio::select! {biased;_ = lease.revoked.cancelled()=>None,result=client.clean(&lease.bearer,&model,&original,&permit,&cancel)=>result.ok()}
+                        tokio::select! {biased;_ = lease.revoked.cancelled()=>Err(CleanupError::Cancelled),result=client.clean(&lease.bearer,&model,&original,&permit,&cancel)=>result}
                     }
-                    Err(_) => None,
+                    Err(error) => Err(error),
                 },
-                _ => None,
+                _ => Err(CleanupError::Credential),
             };
-            let _ = output.send(Event::Cleaned(generation, result));
+            let _ = output.send(Event::Cleaned {
+                generation,
+                profile,
+                result,
+            });
             // Send original-text completion first, then reconcile account state
             // with this same request ID so the UI can clear stale model/consent.
             profiles(manager, output).await;
         }
-        Command::Shutdown => {}
+        Command::ManageUsage(_) => {}
     }
 }
 fn error_key(error: AccountError) -> &'static str {

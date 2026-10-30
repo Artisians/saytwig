@@ -10,6 +10,8 @@ pub(crate) struct Model {
     pub(crate) last: Option<Transcript>,
     pub(crate) notice: Option<&'static str>,
     pub(crate) installing: bool,
+    pub(crate) install_cancelling: bool,
+    pub(crate) setup_progress: Option<phonon_service::SetupProgress>,
     pub(crate) devices: Vec<String>,
 }
 impl Default for Model {
@@ -23,6 +25,8 @@ impl Default for Model {
             last: None,
             notice: None,
             installing: false,
+            install_cancelling: false,
+            setup_progress: None,
             devices: Vec::new(),
         }
     }
@@ -40,6 +44,11 @@ impl Model {
     pub(crate) fn apply(&mut self, event: Event) -> Option<(Generation, Transcript)> {
         match event {
             Event::Engine(engine) => self.engine = engine,
+            Event::Setup(progress) => {
+                if self.installing {
+                    self.setup_progress = Some(progress);
+                }
+            }
             Event::Loaded(settings, history) => {
                 self.settings_loaded = true;
                 self.settings = settings;
@@ -82,11 +91,25 @@ impl Model {
                 if matches!(notice, "storage_unavailable" | "storage_unreadable") {
                     self.settings_loaded = true;
                 }
-                if matches!(notice, "installation_failed" | "installation_cancelled") {
+                if matches!(
+                    notice,
+                    "installation_failed"
+                        | "installation_cancelled"
+                        | "setup_unsupported"
+                        | "setup_no_space"
+                        | "setup_recovery_required"
+                        | "setup_bootstrap_unavailable"
+                ) {
                     self.installing = false;
+                    self.install_cancelling = false;
+                    self.setup_progress = None;
                 }
             }
-            Event::Installed => self.installing = false,
+            Event::Installed => {
+                self.installing = false;
+                self.install_cancelling = false;
+                self.setup_progress = None;
+            }
         }
         None
     }

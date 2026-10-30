@@ -46,7 +46,7 @@ impl Audio16k {
         );
         Ok(Self(samples))
     }
-    fn wav(&self) -> Result<Vec<u8>> {
+    fn into_wav(self) -> Result<Vec<u8>> {
         let mut buffer = std::io::Cursor::new(Vec::with_capacity(self.0.len() * 2 + 44));
         let specification = hound::WavSpec {
             channels: 1,
@@ -123,15 +123,16 @@ enum Message {
     Shutdown,
 }
 struct Inner {
-    tx: mpsc::Sender<Message>,
+    tx: mpsc::SyncSender<Message>,
     control: Arc<Control>,
     worker: Mutex<Option<thread::JoinHandle<()>>>,
 }
 impl Inner {
     fn close(&self) {
-        self.control.closed.store(true, Ordering::Release);
-        self.control.epoch.fetch_add(1, Ordering::AcqRel);
-        let _ = self.tx.send(Message::Shutdown);
+        if !self.control.closed.swap(true, Ordering::AcqRel) {
+            self.control.epoch.fetch_add(1, Ordering::AcqRel);
+            let _ = self.tx.send(Message::Shutdown);
+        }
         if let Some(worker) = self.worker.lock().unwrap_or_else(|e| e.into_inner()).take() {
             let _ = worker.join();
         }
@@ -162,7 +163,9 @@ impl PhononService {
         let model_directory = model_directory
             .canonicalize()
             .context("Cannot resolve model directory")?;
-        let (tx, rx) = mpsc::channel();
+        // One active Run is already enforced by `busy`; retain at most one
+        // pending control message instead of an unbounded Stop/Shutdown queue.
+        let (tx, rx) = mpsc::sync_channel(1);
         let control = Arc::new(Control {
             epoch: AtomicU64::new(0),
             closed: AtomicBool::new(false),
@@ -238,6 +241,10 @@ impl PhononService {
     }
     /// Invalidates queued/in-flight work, then waits for the owned child to exit.
     pub fn stop(&self) -> Result<()> {
+        ensure!(
+            !self.0.control.closed.load(Ordering::Acquire),
+            "Speech service is closed"
+        );
         self.0.control.epoch.fetch_add(1, Ordering::AcqRel);
         let (reply, result) = mpsc::channel();
         self.0
@@ -256,12 +263,10 @@ fn vocabulary_terms(input: &[String]) -> Vec<String> {
     let mut result = Vec::new();
     let mut unique = std::collections::HashSet::new();
     for value in input {
-        let value = value.split_whitespace().collect::<Vec<_>>().join(" ");
-        if !value.is_empty()
-            && value.chars().count() <= 128
-            && !value.chars().any(char::is_control)
-            && unique.insert(value.to_lowercase())
-        {
+        let Some(value) = vocabulary_term(value) else {
+            continue;
+        };
+        if unique.insert(value.to_lowercase()) {
             result.push(value);
             if result.len() == 25 {
                 break;
@@ -269,6 +274,33 @@ fn vocabulary_terms(input: &[String]) -> Vec<String> {
         }
     }
     result
+}
+
+// Bound normalization itself, not just the eventual result: splitting a large
+// settings string into a Vec<&str> could allocate far beyond the accepted term.
+fn vocabulary_term(input: &str) -> Option<String> {
+    let mut value = String::new();
+    let mut characters = 0;
+    let mut separator = false;
+    for character in input.chars() {
+        if character.is_whitespace() {
+            separator = !value.is_empty();
+            continue;
+        }
+        if character.is_control() {
+            return None;
+        }
+        characters += 1 + usize::from(separator);
+        if characters > 128 {
+            return None;
+        }
+        if separator {
+            value.push(' ');
+            separator = false;
+        }
+        value.push(character);
+    }
+    (!value.is_empty()).then_some(value)
 }
 
 struct OwnedProcess {
@@ -498,13 +530,11 @@ fn run_worker(
                         }
                         Operation::Recognize(audio, terms) => {
                             control.state(Phase::Transcribing, None);
-                            let text = wire::transcribe(
-                                child.port,
-                                &child.secret,
-                                &audio.wav()?,
-                                &terms,
-                                &check,
-                            )?;
+                            // Consume PCM before upload, releasing its float buffer
+                            // rather than retaining it throughout native inference.
+                            let wav = audio.into_wav()?;
+                            let text =
+                                wire::transcribe(child.port, &child.secret, &wav, &terms, &check)?;
                             check()?;
                             Ok(Some(text))
                         }

@@ -5,6 +5,8 @@ pub const MAX_SECONDS: usize = 120;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
 pub enum AudioError {
+    #[error("Another microphone worker is still active")]
+    Busy,
     #[error("The selected microphone is unavailable")]
     DeviceUnavailable,
     #[error("The microphone configuration is unsupported")]

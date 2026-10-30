@@ -1,0 +1,101 @@
+name: App-only channel artifacts
+
+on:
+  push:
+    branches: [nightly, stable]
+    tags: ['saytwig-v*']
+
+permissions: {}
+
+# Never interrupt an active artifact publication. Ordinary CI cancels superseded checks.
+concurrency:
+  group: channel-artifacts-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RUSTUP_TOOLCHAIN: 1.99.1
+  CARGO_BUILD_JOBS: 2
+  CARGO_INCREMENTAL: 0
+  CARGO_BUILD_WARNINGS: deny
+  CARGO_TERM_COLOR: always
+  CARGO_TARGET_DIR: target/channel
+
+jobs:
+  candidate:
+    name: App-only candidate (${{ matrix.target }})
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13.16'
+      - name: Linux native build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config clang cmake libasound2-dev libfontconfig-dev libfreetype-dev libssl-dev libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libxcb1-dev libvulkan-dev libzstd-dev libglib2.0-dev
+      - name: Install pinned Rust tools and native target
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy --target ${{ matrix.target }}
+      - name: Restore pinned notice tool
+        id: notice-tool
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/cargo-about/
+          key: cargo-about-${{ matrix.os }}-${{ runner.arch }}-rust1.99.1-v0.9.2-cli
+      - name: Install pinned notice tool
+        if: steps.notice-tool.outputs.cache-hit != 'true'
+        run: cargo install cargo-about --version 0.9.2 --features cli --locked --root .tools/cargo-about
+      - name: Save pinned notice tool
+        if: steps.notice-tool.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .tools/cargo-about/
+          key: ${{ steps.notice-tool.outputs.cache-primary-key }}
+      - name: Restore isolated release-profile cache
+        id: release-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/channel/
+          key: channel-${{ matrix.os }}-${{ runner.arch }}-rust1.99.1-${{ matrix.target }}-release-${{ hashFiles('Cargo.lock', '**/Cargo.toml', 'rust-toolchain.toml', '.github/workflows/channel-artifacts.yml', 'scripts/checks/run.py') }}-${{ github.sha }}
+          restore-keys: |
+            channel-${{ matrix.os }}-${{ runner.arch }}-rust1.99.1-${{ matrix.target }}-release-${{ hashFiles('Cargo.lock', '**/Cargo.toml', 'rust-toolchain.toml', '.github/workflows/channel-artifacts.yml', 'scripts/checks/run.py') }}-
+      - name: Require same-source notices, then build and package candidate
+        run: python scripts/release/build_channel.py --target ${{ matrix.target }}
+      - name: Save successful release-profile cache
+        if: steps.release-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/channel/
+          key: ${{ steps.release-cache.outputs.cache-primary-key }}
+      - name: Upload app-only candidate (not a GitHub Release or installer)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: saytwig-${{ github.ref_name }}-${{ matrix.target }}-${{ github.sha }}
+          path: |
+            dist/channel/${{ matrix.target }}/*.zip
+            dist/channel/${{ matrix.target }}/*.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

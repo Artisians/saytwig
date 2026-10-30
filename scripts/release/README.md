@@ -67,7 +67,9 @@ icon list. The bundle contains Lucide icons, with the upstream combined ISC and
 Feather-derived MIT attribution copied verbatim. The current app does not bundle
 font files; GPUI's IBM Plex/Lilex byte inclusions inspected here are test-only,
 while production fonts come from the platform or explicitly supplied asset
-source. New local font/image assets fail the gate until reviewed. Default icon
+source. The native first-party `assets/saytwig.svg` is pinned by hash and its actual
+`include_bytes!` source reference, under Saytwig's MIT license. New local font/image
+assets fail the gate until reviewed. Default icon
 hashes are recorded per artifact; locked crate versions/checksums bind the inputs.
 
 ## Primary references
@@ -98,6 +100,37 @@ code from that archive is executed by this route. See the
 [Mozilla MPL 2.0 source distribution terms](https://www.mozilla.org/en-US/MPL/2.0/).
 The supplied webpki-roots CDLA agreement is retained too.
 
-**Distribution is still blocked.** See `STATUS.md` for observed generator results
-and unresolved source evidence. Never treat the existence of this tooling or a
-source CI result as proof that distributable notices have passed.
+Both reviewed target recipes passed cloud generation. See `STATUS.md` for the
+receipt scope and remaining release requirements. The packaging workflow must
+regenerate notices from its own immutable checkout. A source CI result alone
+is not proof that distributable notices have passed.
+
+The Apache declaration exceptions are deliberately limited to `mac 0.1.1` and
+`pathfinder_geometry 0.5.1`. The published archive explicitly offers Apache-2.0;
+for mac the README independently repeats it, and Pathfinder source headers repeat
+it with original project copyright. `declaration-exceptions.json` pins those
+original declarations and all Pathfinder source license headers. The exact
+[official Apache text](https://www.apache.org/licenses/LICENSE-2.0.txt) is retained
+unchanged, including its unfilled template. This is an explicit inference from
+upstream declarations, **not** an invented copyright, blanket canonical-text
+exception or legal clearance. A separate narrowly pinned `seahash 4.1.0` exception retains its exact published
+MIT declaration, authored metadata/README and complete checksum-verified source
+archive. It adds the unchanged [SPDX MIT standard text](https://spdx.org/licenses/MIT.html),
+explicitly labeled standard with placeholder unfilled. No copyright holder/year
+is inferred from Cargo authors. This addresses the stricter tooling evidence
+policy; it does not establish what unavailable upstream material might contain
+or replace independent release review.
+
+Some Windows crates ship their real Microsoft notices as lowercase `license-mit`;
+hash-pinned local clarifications preserve those actual files. The scanner uses
+workspace metadata so a workspace-selected production feature (Windows tray) is
+not lost by its graph traversal; final notice membership/coverage is filtered
+against the target-specific `cargo tree -p dictation-app --edges normal,build`
+graph. Extra unrelated workspace package notices are not substituted for missing
+production dependencies.
+
+For multiple versions of one crate, a shared cargo-about clarification is used
+only when the selected license and exact terms hash match. Each version still
+retains its own full original notices. For zune-jpeg, the shared Zlib terms exclude
+no obligations; the newer copyright header remains in its retained full file.
+The dpi Apache-2.0 AND MIT declaration keeps both original license files.

@@ -67,15 +67,61 @@ fn relative_path(path: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
-fn members(root: &Path, directory: &Path, result: &mut BTreeSet<PathBuf>) -> Result<()> {
+fn is_reparse(metadata: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        metadata.file_attributes() & 0x400 != 0 // FILE_ATTRIBUTE_REPARSE_POINT
+    }
+    #[cfg(not(windows))]
+    {
+        metadata.file_type().is_symlink()
+    }
+}
+fn members(
+    root: &Path,
+    directory: &Path,
+    result: &mut BTreeSet<PathBuf>,
+    expected_files: &BTreeSet<PathBuf>,
+    expected_directories: &BTreeSet<PathBuf>,
+    check: &impl Fn() -> Result<()>,
+) -> Result<()> {
+    check()?;
     for entry in fs::read_dir(directory)? {
+        check()?;
         let entry = entry?;
-        let kind = entry.file_type()?;
-        ensure!(!kind.is_symlink(), "Bundle contains a symbolic link");
-        if kind.is_dir() {
-            members(root, &entry.path(), result)?;
-        } else if kind.is_file() {
-            result.insert(entry.path().strip_prefix(root)?.to_owned());
+        let path = entry.path();
+        let relative = path.strip_prefix(root)?;
+        let metadata = fs::symlink_metadata(&path)?;
+        ensure!(
+            !is_reparse(&metadata),
+            "Bundle contains a linked or reparse member"
+        );
+        if metadata.is_dir() {
+            // Refuse an unknown directory before entering it, including empty
+            // directories: depth/count are limited to the trusted inventory's
+            // ancestor set, not to whatever currently exists on disk.
+            ensure!(
+                expected_directories.contains(relative),
+                "Bundle contains an unexpected directory"
+            );
+            members(
+                root,
+                &path,
+                result,
+                expected_files,
+                expected_directories,
+                check,
+            )?;
+        } else if metadata.is_file() {
+            ensure!(
+                expected_files.contains(relative),
+                "Bundle contains an unexpected file"
+            );
+            ensure!(
+                result.insert(relative.to_owned()) && result.len() <= expected_files.len(),
+                "Bundle inventory member count is inconsistent"
+            );
         } else {
             bail!("Bundle contains a non-regular member");
         }
@@ -85,13 +131,22 @@ fn members(root: &Path, directory: &Path, result: &mut BTreeSet<PathBuf>) -> Res
 
 impl RuntimeBundle {
     pub fn open(root: impl Into<PathBuf>, manifest_sha256: &str) -> Result<Self> {
+        Self::open_checked(root, manifest_sha256, &|| Ok(()))
+    }
+    pub(crate) fn open_checked(
+        root: impl Into<PathBuf>,
+        manifest_sha256: &str,
+        check: &impl Fn() -> Result<()>,
+    ) -> Result<Self> {
+        check()?;
         ensure!(
             manifest_sha256.len() == 64 && manifest_sha256.bytes().all(|b| b.is_ascii_hexdigit()),
             "Invalid trusted bundle digest"
         );
         let root = root.into();
+        let metadata = fs::symlink_metadata(&root)?;
         ensure!(
-            fs::symlink_metadata(&root)?.is_dir(),
+            metadata.is_dir() && !is_reparse(&metadata),
             "Runtime root must be a regular directory"
         );
         let bundle = Self {
@@ -100,7 +155,7 @@ impl RuntimeBundle {
                 .context("Cannot resolve runtime directory")?,
             manifest_sha256: manifest_sha256.to_ascii_lowercase(),
         };
-        bundle.verify()?;
+        bundle.verify_checked(check)?;
         Ok(bundle)
     }
     pub fn root(&self) -> &Path {
@@ -119,19 +174,37 @@ impl RuntimeBundle {
         check()?;
         require_supported_host()?;
         let manifest = self.root.join("bundle.json");
+        let metadata = fs::symlink_metadata(&manifest)?;
         ensure!(
-            fs::symlink_metadata(&manifest)?.is_file(),
+            metadata.is_file() && !is_reparse(&metadata),
             "Bundle inventory must be a regular file"
         );
         ensure!(
             fs::metadata(&manifest)?.len() <= 8 * 1024 * 1024,
             "Bundle inventory is oversized"
         );
+        // Hash and parse the same bounded snapshot, not separate file opens.
+        // A concurrent change must not substitute unchecked inventory bytes.
+        let mut file = fs::File::open(&manifest)?;
+        let mut bytes = Vec::new();
+        let mut block = [0u8; 128 * 1024];
+        loop {
+            check()?;
+            let length = file.read(&mut block)?;
+            if length == 0 {
+                break;
+            }
+            ensure!(
+                bytes.len() + length <= 8 * 1024 * 1024,
+                "Bundle inventory is oversized"
+            );
+            bytes.extend_from_slice(&block[..length]);
+        }
         ensure!(
-            hash_file_checked(&manifest, check)? == self.manifest_sha256,
+            hex::encode(Sha256::digest(&bytes)) == self.manifest_sha256,
             "Bundle inventory does not match the trusted release"
         );
-        let inventory: Inventory = serde_json::from_slice(&fs::read(manifest)?)?;
+        let inventory: Inventory = serde_json::from_slice(&bytes)?;
         #[cfg(windows)]
         ensure!(
             inventory.target.as_deref() == Some("windows-x86_64"),
@@ -150,8 +223,9 @@ impl RuntimeBundle {
                 "Duplicate bundle inventory member"
             );
             let file = self.root.join(relative);
+            let metadata = fs::symlink_metadata(&file)?;
             ensure!(
-                fs::symlink_metadata(&file)?.is_file(),
+                metadata.is_file() && !is_reparse(&metadata),
                 "Bundle member is not a regular file"
             );
             ensure!(
@@ -160,8 +234,25 @@ impl RuntimeBundle {
                 "Speech bundle integrity check failed"
             );
         }
+        let mut expected_directories = BTreeSet::new();
+        for file in &expected {
+            for ancestor in file
+                .ancestors()
+                .skip(1)
+                .filter(|path| !path.as_os_str().is_empty())
+            {
+                expected_directories.insert(ancestor.to_owned());
+            }
+        }
         let mut actual = BTreeSet::new();
-        members(&self.root, &self.root, &mut actual)?;
+        members(
+            &self.root,
+            &self.root,
+            &mut actual,
+            &expected,
+            &expected_directories,
+            check,
+        )?;
         ensure!(
             actual == expected,
             "Speech bundle has missing or unexpected files"
@@ -174,7 +265,7 @@ impl RuntimeBundle {
     }
 }
 
-fn require_supported_host() -> Result<()> {
+pub(crate) fn require_supported_host() -> Result<()> {
     #[cfg(windows)]
     {
         use windows_sys::Win32::System::{

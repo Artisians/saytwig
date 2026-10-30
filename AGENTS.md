@@ -30,3 +30,11 @@
 
 - Follow the actual [Matt Pocock PR skill](https://github.com/mattpocock/skills/blob/main/skills/engineering/pr/SKILL.md): concise Summary with the smallest useful diagram/tree/diff sketch, concrete Before/After Evidence, and Merge Danger describing reversibility and blast radius. Keep build, hands-on app and unverified-platform evidence distinct.
 - The skill's generic test examples do not override this project's no-test-suite rule. Never fabricate a before failure or after pass, submit approval reviews without required authorization, or present a draft promotion as a stable release.
+
+## Writing and code cleanup
+
+- Apply `.agents/skills/technical-writing/SKILL.md` and its required `.agents/skills/unslop/SKILL.md` whenever writing or reviewing README files, documentation, PR descriptions, or commit messages. Read the files, then edit the actual copy.
+- Apply `unslop` to UI and landing-page copy alongside Impeccable and the product's short-label style. Keep privacy consent, actionable errors, and necessary product limitations.
+- Apply `.agents/skills/deslop/SKILL.md` to code diffs before publication. Use the actual target branch as the base; `main` currently contains the repository home, not the app. Remove redundant comments and abstractions, not trust-boundary validation, resource limits, or cancellation checks.
+- Keep public README files about the product: what it does, how to get or build it, current limitations, and credits. Put agent coordination, migration bookkeeping, raw verification logs, and publication details in engineering documents, not the product introduction.
+- Pinned upstream sources, hashes, and MIT licenses are recorded in `.agents/skills/WRITING_SOURCE.json`. These writing skills do not override any project policy above.

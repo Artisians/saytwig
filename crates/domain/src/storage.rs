@@ -51,6 +51,10 @@ impl History {
 pub enum StoreError {
     #[error("The data file could not be accessed")]
     Io(#[source] std::io::Error),
+    #[error("Another process is using the data file; retry after it finishes")]
+    Busy,
+    #[error("The data path is not a regular file")]
+    NotRegular,
     #[error("The data file is malformed; it was not modified")]
     Malformed,
     #[error("The data file uses an unsupported schema version; it was not modified")]
@@ -77,6 +81,52 @@ struct Envelope<T> {
     #[serde(flatten)]
     extra: BTreeMap<String, Value>,
 }
+#[derive(Deserialize)]
+struct VersionHeader {
+    #[serde(default)]
+    schema_version: Value,
+}
+#[derive(Serialize)]
+struct BorrowedEnvelope<'a, T> {
+    schema_version: u32,
+    data: &'a T,
+    #[serde(flatten)]
+    extra: &'a BTreeMap<String, Value>,
+}
+
+/// Stops serialization before private data grows beyond the on-disk limit.
+#[derive(Default)]
+struct LimitedBytes {
+    bytes: Vec<u8>,
+    exceeded: bool,
+}
+impl Write for LimitedBytes {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        let length = self.bytes.len().saturating_add(buffer.len());
+        if length as u64 > MAX_FILE_BYTES {
+            self.exceeded = true;
+            return Err(std::io::Error::other("Data size limit exceeded"));
+        }
+        // Do not let geometric Vec growth reserve beyond the file-size cap.
+        if length > self.bytes.capacity() {
+            let capacity = self
+                .bytes
+                .capacity()
+                .saturating_mul(2)
+                .max(length)
+                .min(MAX_FILE_BYTES as usize);
+            self.bytes
+                .try_reserve_exact(capacity - self.bytes.len())
+                .map_err(std::io::Error::other)?;
+        }
+        self.bytes.extend_from_slice(buffer);
+        Ok(buffer.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 /// An opaque revision, intentionally not Debug because it retains private bytes.
 pub struct Revision {
     bytes: Vec<u8>,
@@ -104,9 +154,15 @@ impl<T: Serialize + DeserializeOwned> JsonStore<T> {
         let _lock = self.lock()?;
         self.read_unlocked()?
             .map(|bytes| {
-                let header: Value =
-                    serde_json::from_slice(&bytes).map_err(|_| StoreError::Malformed)?;
-                if header.get("schema_version").and_then(Value::as_u64) != Some(VERSION as u64) {
+                // Ignore data while inspecting the version; do not retain a
+                // second complete JSON tree alongside the typed history. The
+                // typed parse still rejects duplicate fields as before.
+                if serde_json::from_slice::<VersionHeader>(&bytes)
+                    .map_err(|_| StoreError::Malformed)?
+                    .schema_version
+                    .as_u64()
+                    != Some(VERSION as u64)
+                {
                     return Err(StoreError::UnsupportedVersion);
                 }
                 let envelope: Envelope<T> =
@@ -132,15 +188,24 @@ impl<T: Serialize + DeserializeOwned> JsonStore<T> {
         let extra = expected
             .map(|revision| revision.extra.clone())
             .unwrap_or_default();
-        let bytes = serde_json::to_vec_pretty(&Envelope {
-            schema_version: VERSION,
-            data: value,
-            extra: extra.clone(),
-        })
-        .map_err(|_| StoreError::Malformed)?;
-        if bytes.len() as u64 > MAX_FILE_BYTES {
-            return Err(StoreError::TooLarge);
+        let mut output = LimitedBytes::default();
+        if serde_json::to_writer_pretty(
+            &mut output,
+            &BorrowedEnvelope {
+                schema_version: VERSION,
+                data: value,
+                extra: &extra,
+            },
+        )
+        .is_err()
+        {
+            return Err(if output.exceeded {
+                StoreError::TooLarge
+            } else {
+                StoreError::Malformed
+            });
         }
+        let bytes = output.bytes;
         let parent = self.parent();
         let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
         temporary.write_all(&bytes)?;
@@ -175,7 +240,15 @@ impl<T: Serialize + DeserializeOwned> JsonStore<T> {
             .read(true)
             .write(true)
             .open(lock_path)?;
-        lock.lock_exclusive()?;
+        lock.try_lock_exclusive().map_err(|error| {
+            if error.kind() == std::io::ErrorKind::WouldBlock
+                || error.raw_os_error() == fs2::lock_contended_error().raw_os_error()
+            {
+                StoreError::Busy
+            } else {
+                StoreError::Io(error)
+            }
+        })?;
         Ok(lock)
     }
     fn read_unlocked(&self) -> Result<Option<Vec<u8>>, StoreError> {
@@ -199,7 +272,8 @@ impl<T: Serialize + DeserializeOwned> JsonStore<T> {
 fn reject_symlink(path: &Path) -> Result<(), StoreError> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => Err(StoreError::Symlink),
-        Ok(_) => Ok(()),
+        Ok(metadata) if metadata.is_file() => Ok(()),
+        Ok(_) => Err(StoreError::NotRegular),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error.into()),
     }

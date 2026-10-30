@@ -174,17 +174,25 @@ pub(crate) fn transcribe(
 ) -> Result<String> {
     let mut stream = authenticate(port, secret, check)?;
     let boundary = uuid::Uuid::new_v4().simple().to_string();
-    let mut body = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"vocabulary\"\r\n\r\n{}\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n", serde_json::to_string(vocabulary)?).into_bytes();
-    body.extend_from_slice(wav);
-    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    let prefix = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"vocabulary\"\r\n\r\n{}\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n", serde_json::to_string(vocabulary)?);
+    let suffix = format!("\r\n--{boundary}--\r\n");
+    let length = prefix
+        .len()
+        .checked_add(wav.len())
+        .and_then(|size| size.checked_add(suffix.len()))
+        .context("Recording form length overflow")?;
     ensure!(
-        body.len() <= 16_000 * 120 * 2 + 16_384,
+        length <= 16_000 * 120 * 2 + 16_384,
         "Recording form exceeded its limit"
     );
     let deadline = Instant::now() + Duration::from_secs(180);
-    let header = format!("POST /transcribe HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer {secret}\r\nContent-Type: multipart/form-data; boundary={boundary}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+    let header = format!("POST /transcribe HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAuthorization: Bearer {secret}\r\nContent-Type: multipart/form-data; boundary={boundary}\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n");
     transfer(&mut stream, header.as_bytes(), check, deadline)?;
-    transfer(&mut stream, &body, check, deadline)?;
+    // Keep one authenticated connection and exact Content-Length, without
+    // duplicating the complete WAV into a second multipart buffer.
+    transfer(&mut stream, prefix.as_bytes(), check, deadline)?;
+    transfer(&mut stream, wav, check, deadline)?;
+    transfer(&mut stream, suffix.as_bytes(), check, deadline)?;
     let reply = receive(&mut stream, check, deadline)?;
     ensure!(
         reply.status == 200,

@@ -26,6 +26,8 @@ pub struct RuntimeBundle {
 #[derive(Deserialize)]
 struct Inventory {
     schema: u32,
+    #[cfg(windows)]
+    target: Option<String>,
     files: Vec<Entry>,
 }
 #[derive(Deserialize)]
@@ -115,6 +117,7 @@ impl RuntimeBundle {
     }
     pub(crate) fn verify_checked(&self, check: &impl Fn() -> Result<()>) -> Result<()> {
         check()?;
+        require_supported_host()?;
         let manifest = self.root.join("bundle.json");
         ensure!(
             fs::symlink_metadata(&manifest)?.is_file(),
@@ -129,6 +132,11 @@ impl RuntimeBundle {
             "Bundle inventory does not match the trusted release"
         );
         let inventory: Inventory = serde_json::from_slice(&fs::read(manifest)?)?;
+        #[cfg(windows)]
+        ensure!(
+            inventory.target.as_deref() == Some("windows-x86_64"),
+            "Runtime bundle is not declared for Windows x64"
+        );
         ensure!(
             inventory.schema == 1,
             "Unsupported bundle inventory version"
@@ -164,6 +172,37 @@ impl RuntimeBundle {
         );
         Ok(())
     }
+}
+
+fn require_supported_host() -> Result<()> {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::System::{
+            SystemInformation::{IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_UNKNOWN},
+            Threading::{GetCurrentProcess, IsWow64Process2},
+        };
+        let mut process_machine = 0;
+        let mut native_machine = 0;
+        // SAFETY: the pseudo-handle is valid for this process and both output
+        // pointers reference live, correctly sized variables for the call.
+        let queried = unsafe {
+            IsWow64Process2(
+                GetCurrentProcess(),
+                &mut process_machine,
+                &mut native_machine,
+            )
+        };
+        ensure!(
+            queried != 0,
+            "Cannot determine the native Windows architecture"
+        );
+        ensure!(
+            native_machine == IMAGE_FILE_MACHINE_AMD64
+                && process_machine == IMAGE_FILE_MACHINE_UNKNOWN,
+            "Saytwig requires native Windows x64; Windows on ARM and x86 are not supported"
+        );
+    }
+    Ok(())
 }
 
 /// Checks all three reconstructed inputs, not just the model's claimed digest.

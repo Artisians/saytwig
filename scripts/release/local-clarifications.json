@@ -1,0 +1,94 @@
+[
+  {
+    "package": "chrono",
+    "version": "0.4.45",
+    "declared_license": "MIT OR Apache-2.0",
+    "selected_license": "MIT",
+    "files": [
+      {
+        "path": "LICENSE.txt",
+        "sha256": "946c9835d8034d24404f8cfec5f4654cee5dad17e944afc3d06d742cf2882831"
+      }
+    ]
+  },
+  {
+    "package": "exr",
+    "version": "1.74.2",
+    "declared_license": "BSD-3-Clause",
+    "selected_license": "BSD-3-Clause",
+    "files": [
+      {
+        "path": "LICENSE.md",
+        "sha256": "97e4d3aa7a9e8ac31979c16ca8bb2b628a9cb72c3362185ad2bf4ad77f43551f"
+      }
+    ]
+  },
+  {
+    "package": "granit-parser",
+    "version": "1.3.0",
+    "declared_license": "MIT OR Apache-2.0",
+    "selected_license": "MIT",
+    "files": [
+      {
+        "path": "LICENSE",
+        "sha256": "1af262e6647807eecaec988ecf2b783fb8fdbdecba396d582c1aab90615f6845"
+      },
+      {
+        "path": ".licenses/ChenYuheng-MIT",
+        "sha256": "70480dc70c2fe1d9bbb64dab9a0abce266332905ffef9cabeae26dd027716ecb"
+      },
+      {
+        "path": ".licenses/Ethiraric-MIT",
+        "sha256": "90f4ea53f408858ba4886f57b8e3ceac876eefbb59c20f0844f0abbfa59e2749"
+      }
+    ]
+  },
+  {
+    "package": "libm",
+    "version": "0.2.16",
+    "declared_license": "MIT",
+    "selected_license": "MIT",
+    "files": [
+      {
+        "path": "LICENSE.txt",
+        "sha256": "3823dda7cf046602f4b4e77ec8e227863dc4736037cc85bb33d9f19febe16bb7"
+      }
+    ]
+  },
+  {
+    "package": "ryu",
+    "version": "1.0.23",
+    "declared_license": "Apache-2.0 OR BSL-1.0",
+    "selected_license": "Apache-2.0",
+    "files": [
+      {
+        "path": "LICENSE-APACHE",
+        "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+      }
+    ]
+  },
+  {
+    "package": "sha1_smol",
+    "version": "1.0.1",
+    "declared_license": "BSD-3-Clause",
+    "selected_license": "BSD-3-Clause",
+    "files": [
+      {
+        "path": "LICENSE",
+        "sha256": "282a21b0710441c364025461a447362daf18f5798a7b72ae2f801a2aa536da51"
+      }
+    ]
+  },
+  {
+    "package": "sync_wrapper",
+    "version": "1.0.2",
+    "declared_license": "Apache-2.0",
+    "selected_license": "Apache-2.0",
+    "files": [
+      {
+        "path": "LICENSE",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      }
+    ]
+  }
+]

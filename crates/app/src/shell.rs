@@ -15,7 +15,7 @@ use dictation_domain::{Generation, Phase, Transcript};
 use gpui_kit::component::{
     button::{Button, ButtonVariants},
     input::{Input, InputEvent, InputState},
-    Disableable, Sizable,
+    Disableable, Selectable, Sizable,
 };
 use gpui_kit::{
     div, prelude::*, px, rgb, App, Context, Entity, FocusHandle, KeyBinding, Render, Subscription,
@@ -38,6 +38,10 @@ pub(crate) struct Shell {
     model: Model,
     clipboard: Option<crate::clipboard::Clipboard>,
     cloud: Option<Cloud>,
+    updates: Option<crate::updates::Updates>,
+    update_consent: saytwig_updates::Consent,
+    update_message: &'static str,
+    update_release: Option<crate::updates::VerifiedRelease>,
     profiles: Vec<Profile>,
     cleanup_models: Vec<CleanupModel>,
     cleanup_model: Option<CleanupModel>,
@@ -61,6 +65,8 @@ pub(crate) struct Shell {
     overlay: Option<(gpui_kit::AnyWindowHandle, Entity<RecordingPill>)>,
     selected: Option<usize>,
     show_original: bool,
+    setup_help: bool,
+    dictation_help: bool,
     sync_inputs: bool,
     restore_hotkey: bool,
     overlay_attempted: bool,
@@ -87,6 +93,10 @@ impl Shell {
                 .clipboard
                 .as_mut()
                 .and_then(crate::clipboard::Clipboard::shutdown);
+            let updates = this
+                .updates
+                .as_mut()
+                .and_then(crate::updates::Updates::shutdown);
             let cloud = this.cloud.as_mut().and_then(Cloud::shutdown);
             let worker = this.worker.as_mut().and_then(Worker::shutdown);
             cx.background_executor().spawn(async move {
@@ -98,6 +108,9 @@ impl Shell {
                 }
                 if let Some(cloud) = cloud {
                     let _ = cloud.join();
+                }
+                if let Some(updates) = updates {
+                    let _ = updates.join();
                 }
             })
         }));
@@ -121,6 +134,10 @@ impl Shell {
             model,
             clipboard: crate::clipboard::Clipboard::start().ok(),
             cloud: Cloud::start().ok(),
+            updates: crate::updates::Updates::start().ok(),
+            update_consent: saytwig_updates::Consent::Disabled,
+            update_message: "updates_off",
+            update_release: None,
             profiles: Vec::new(),
             cleanup_models: Vec::new(),
             cleanup_model: None,
@@ -144,6 +161,8 @@ impl Shell {
             overlay: None,
             selected: None,
             show_original: false,
+            setup_help: false,
+            dictation_help: false,
             sync_inputs: true,
             restore_hotkey: false,
             overlay_attempted: false,
@@ -233,11 +252,11 @@ impl Shell {
                         .profiles
                         .iter()
                         .find(|p| p.active && p.connected)
-                        .map(|p| &p.id);
+                        .map(|p| (&p.id, p.plan_use_granted));
                     let new = profiles
                         .iter()
                         .find(|p| p.active && p.connected)
-                        .map(|p| &p.id);
+                        .map(|p| (&p.id, p.plan_use_granted));
                     if old != new {
                         self.disable_cleanup();
                         self.cleanup_models.clear();
@@ -250,7 +269,7 @@ impl Shell {
                     if self
                         .profiles
                         .iter()
-                        .any(|p| p.active && p.connected && p.id == profile)
+                        .any(|p| p.active && p.connected && p.plan_use_granted && p.id == profile)
                     {
                         self.cleanup_models = models;
                         self.cleanup_model = None;
@@ -339,6 +358,17 @@ impl Shell {
                 }
                 crate::clipboard::Outcome::Pasted(Err(_)) => "paste_failed",
             });
+            changed = true;
+        }
+        if let Some(finished) = self
+            .updates
+            .as_mut()
+            .and_then(crate::updates::Updates::poll)
+        {
+            if let Some(outcome) = finished.outcome {
+                self.update_message = outcome.message;
+                self.update_release = outcome.release;
+            }
             changed = true;
         }
         self.sync_overlay(cx);
@@ -570,8 +600,15 @@ impl Shell {
         div()
             .flex()
             .items_center()
-            .gap_2()
-            .pb_4()
+            .gap_1()
+            .pb_2()
+            .child(
+                div()
+                    .mr_4()
+                    .text_size(px(16.))
+                    .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                    .child("Saytwig"),
+            )
             .children(
                 [
                     (Page::Dictation, "dictation"),
@@ -582,7 +619,9 @@ impl Shell {
                 .map(|(page, key)| {
                     Button::new(key)
                         .ghost()
+                        .small()
                         .label(t(key))
+                        .selected(self.page == page)
                         .toggled(self.page == page)
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.page = page;
@@ -609,80 +648,69 @@ impl Shell {
             .gap_4()
             .child(
                 div()
-                    .text_sm()
-                    .text_color(rgb(0xb3b3b3))
-                    .child(t("last_words")),
-            )
-            .child(
-                div()
                     .id("transcript")
                     .flex_1()
                     .min_h(px(110.))
                     .overflow_y_scroll()
-                    .text_size(px(22.))
+                    .text_size(px(if text.is_none() { 18. } else { 22. }))
+                    .text_color(rgb(if text.is_none() { 0x777777 } else { 0xf2f2f2 }))
                     .child(
                         text.clone()
                             .filter(|s| !s.is_empty())
                             .unwrap_or_else(|| t("empty_title").into()),
                     ),
             )
-            .when(text.is_none(), |el| {
+            .when(text.as_ref().is_some_and(|text| !text.is_empty()), |el| {
                 el.child(
                     div()
-                        .text_sm()
-                        .text_color(rgb(0xb3b3b3))
-                        .child(t("empty_body")),
+                        .flex()
+                        .gap_2()
+                        .child(
+                            Button::new("copy-result")
+                                .ghost()
+                                .label(t("copy"))
+                                .disabled(text.as_ref().is_none_or(String::is_empty))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if let Some(result) = &this.model.last {
+                                        this.copy(
+                                            if this.show_original {
+                                                result.original.clone()
+                                            } else {
+                                                result.output().to_owned()
+                                            },
+                                            cx,
+                                        );
+                                    }
+                                })),
+                        )
+                        .when(
+                            self.model
+                                .last
+                                .as_ref()
+                                .is_some_and(|r| r.cleaned.is_some()),
+                            |el| {
+                                el.child(
+                                    Button::new("toggle-original")
+                                        .ghost()
+                                        .label(t(if self.show_original {
+                                            "view_output"
+                                        } else {
+                                            "view_original"
+                                        }))
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.show_original = !this.show_original;
+                                            cx.notify();
+                                        })),
+                                )
+                            },
+                        ),
                 )
             })
             .child(
                 div()
-                    .flex()
-                    .gap_2()
-                    .child(
-                        Button::new("copy-result")
-                            .ghost()
-                            .label(t("copy"))
-                            .disabled(text.as_ref().is_none_or(String::is_empty))
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                if let Some(result) = &this.model.last {
-                                    this.copy(
-                                        if this.show_original {
-                                            result.original.clone()
-                                        } else {
-                                            result.output().to_owned()
-                                        },
-                                        cx,
-                                    );
-                                }
-                            })),
-                    )
-                    .when(
-                        self.model
-                            .last
-                            .as_ref()
-                            .is_some_and(|r| r.cleaned.is_some()),
-                        |el| {
-                            el.child(
-                                Button::new("toggle-original")
-                                    .ghost()
-                                    .label(t(if self.show_original {
-                                        "view_output"
-                                    } else {
-                                        "view_original"
-                                    }))
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.show_original = !this.show_original;
-                                        cx.notify();
-                                    })),
-                            )
-                        },
-                    ),
-            )
-            .child(
-                div()
                     .border_t_1()
                     .border_color(rgb(0x303030))
-                    .pt_5()
+                    .pt_3()
                     .flex()
                     .items_center()
                     .gap_3()
@@ -690,6 +718,7 @@ impl Shell {
                     .child(
                         Button::new("record")
                             .primary()
+                            .tooltip(t("record_help"))
                             .label(t(if self.model.session.phase() == Phase::Recording {
                                 "stop"
                             } else {
@@ -772,33 +801,34 @@ impl Shell {
                             })),
                     ),
             )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(rgb(0x999999))
-                    .child(t("delivery_hint")),
-            )
     }
     fn setup(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
-            .gap_3()
-            .p_4()
-            .bg(rgb(0x191919))
-            .rounded_md()
-            .child(div().text_sm().child(self.engine_label()))
-            .child(div().text_sm().text_color(rgb(0xb3b3b3)).child(t(
-                if self.model.engine == EngineState::MissingModel {
-                    "install_note"
-                } else {
-                    "runtime_missing"
-                },
-            )))
+            .gap_2()
+            .py_2()
+            .border_b_1()
+            .border_color(rgb(0x303030))
             .child(
                 div()
                     .flex()
                     .gap_2()
+                    .items_center()
+                    .flex_wrap()
+                    .child(div().flex_1().text_sm().child(self.engine_label()))
+                    .child(
+                        Button::new("setup-help")
+                            .ghost()
+                            .small()
+                            .label(t("setup_details"))
+                            .selected(self.setup_help)
+                            .toggled(self.setup_help)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.setup_help = !this.setup_help;
+                                cx.notify();
+                            })),
+                    )
                     .when(self.model.engine == EngineState::MissingModel, |el| {
                         el.child(
                             Button::new("install-model")
@@ -840,6 +870,15 @@ impl Shell {
                             })),
                     ),
             )
+            .when(self.setup_help, |el| {
+                el.child(div().text_sm().text_color(rgb(0xb3b3b3)).child(t(
+                    if self.model.engine == EngineState::MissingModel {
+                        "install_note"
+                    } else {
+                        "runtime_missing"
+                    },
+                )))
+            })
     }
     fn history(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let query = self.search.read(cx).value().to_lowercase();
@@ -852,12 +891,6 @@ impl Shell {
             .flex_1()
             .gap_3()
             .child(Input::new(&self.search).aria_label(t("history")))
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(rgb(0xb3b3b3))
-                    .child(t("history_body")),
-            )
             .when(self.model.history.entries.is_empty(), |el| {
                 el.child(div().py_8().child(t("no_history")))
             })
@@ -887,6 +920,7 @@ impl Shell {
                                     .ghost()
                                     .label(preview)
                                     .w_full()
+                                    .selected(self.selected == Some(index))
                                     .toggled(self.selected == Some(index))
                                     .on_click(cx.listener(move |this, _, _, cx| {
                                         this.selected = Some(index);
@@ -957,6 +991,7 @@ impl Shell {
                         Button::new("default-microphone")
                             .ghost()
                             .label(t("system_microphone"))
+                            .selected(self.model.settings.input_device.is_none())
                             .toggled(self.model.settings.input_device.is_none())
                             .disabled(!self.model.settings_loaded || self.model.active())
                             .on_click(cx.listener(|this, _, _, cx| {
@@ -971,6 +1006,7 @@ impl Shell {
                             .ghost()
                             .label(name.clone())
                             .disabled(!self.model.settings_loaded || self.model.active())
+                            .selected(self.model.settings.input_device.as_ref() == Some(&name))
                             .toggled(self.model.settings.input_device.as_ref() == Some(&name))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.model.settings.input_device = Some(name.clone());
@@ -995,12 +1031,6 @@ impl Shell {
                     .border_color(rgb(0x303030))
                     .pt_3()
                     .child(t("shortcut")),
-            )
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(rgb(0xb3b3b3))
-                    .child(t("shortcut_body")),
             )
             .child(
                 div()
@@ -1042,12 +1072,6 @@ impl Shell {
                     .child(t("vocabulary")),
             )
             .child(
-                div()
-                    .text_sm()
-                    .text_color(rgb(0xb3b3b3))
-                    .child(t("vocabulary_body")),
-            )
-            .child(
                 Input::new(&self.vocabulary)
                     .aria_label(t("vocabulary"))
                     .disabled(!self.model.settings_loaded),
@@ -1071,17 +1095,189 @@ impl Shell {
                     })),
             )
             .child(
+                Button::new("dictation-details")
+                    .ghost()
+                    .small()
+                    .label(t("dictation_details"))
+                    .selected(self.dictation_help)
+                    .toggled(self.dictation_help)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.dictation_help = !this.dictation_help;
+                        cx.notify();
+                    })),
+            )
+            .when(self.dictation_help, |el| {
+                el.child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .text_sm()
+                        .text_color(rgb(0xb3b3b3))
+                        .child(t("shortcut_body"))
+                        .child(t("vocabulary_body"))
+                        .child(t("delivery_hint"))
+                        .child(t("recording_limit"))
+                        .child(
+                            div()
+                                .flex()
+                                .gap_2()
+                                .child("Phonon 2.5 English")
+                                .child(self.engine_label()),
+                        )
+                        .child(t("engine_residency")),
+                )
+            })
+            .child(self.update_preferences(cx))
+    }
+    fn update_preferences(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let enabled = self.update_consent == saytwig_updates::Consent::Enabled;
+        let busy = self
+            .updates
+            .as_ref()
+            .is_some_and(crate::updates::Updates::busy);
+        let commit = option_env!("SAYTWIG_BUILD_COMMIT")
+            .filter(|sha| {
+                matches!(sha.len(), 40 | 64) && sha.bytes().all(|byte| byte.is_ascii_hexdigit())
+            })
+            .map(|sha| sha.chars().take(12).collect::<String>());
+        div()
+            .flex()
+            .flex_col()
+            .gap_2()
+            .border_t_1()
+            .border_color(rgb(0x303030))
+            .pt_3()
+            .child(t("updates_title"))
+            .child(
                 div()
-                    .text_xs()
-                    .text_color(rgb(0xb3b3b3))
-                    .child(t("engine_residency")),
+                    .flex()
+                    .flex_wrap()
+                    .gap_2()
+                    .text_sm()
+                    .child(t("build_source_version"))
+                    .child(env!("CARGO_PKG_VERSION"))
+                    .child(t(crate::updates::channel_key()))
+                    .when_some(commit, |el, sha| el.child(sha)),
             )
             .child(
                 div()
-                    .text_xs()
+                    .text_sm()
                     .text_color(rgb(0xb3b3b3))
-                    .child(t("recording_limit")),
+                    .child(t("updates_privacy")),
             )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap_2()
+                    .child(
+                        Button::new("update-consent")
+                            .ghost()
+                            .selected(enabled)
+                            .toggled(enabled)
+                            .label(t(if enabled {
+                                "updates_disable"
+                            } else {
+                                "updates_allow"
+                            }))
+                            .disabled(self.updates.is_none())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.update_release = None;
+                                if this.update_consent == saytwig_updates::Consent::Enabled {
+                                    this.update_consent = saytwig_updates::Consent::Disabled;
+                                    if let Some(updates) = &mut this.updates {
+                                        updates.cancel();
+                                    }
+                                    this.update_message = "updates_off";
+                                } else {
+                                    // Permission alone never initiates an HTTP request.
+                                    this.update_consent = saytwig_updates::Consent::Enabled;
+                                    this.update_message = if this
+                                        .updates
+                                        .as_ref()
+                                        .is_some_and(crate::updates::Updates::busy)
+                                    {
+                                        "updates_waiting"
+                                    } else {
+                                        "updates_ready"
+                                    };
+                                }
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Button::new("check-stable-release")
+                            .ghost()
+                            .tooltip(t("updates_no_install"))
+                            .label(t("updates_check"))
+                            .disabled(!enabled || busy || self.updates.is_none())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.update_release = None;
+                                this.update_message = if this
+                                    .updates
+                                    .as_mut()
+                                    .is_some_and(|updates| updates.check(this.update_consent))
+                                {
+                                    "updates_checking"
+                                } else {
+                                    "updates_unavailable"
+                                };
+                                cx.notify();
+                            })),
+                    )
+                    .when(busy, |el| {
+                        el.child(
+                            Button::new("cancel-release-check")
+                                .ghost()
+                                .label(t("cancel"))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    if let Some(updates) = &mut this.updates {
+                                        updates.cancel();
+                                    }
+                                    this.update_release = None;
+                                    this.update_message = "updates_cancelled";
+                                    cx.notify();
+                                })),
+                        )
+                    }),
+            )
+            .when(
+                self.updates.is_none()
+                    || !matches!(self.update_message, "updates_off" | "updates_ready"),
+                |el| {
+                    el.child(div().text_sm().child(t(if self.updates.is_some() {
+                        self.update_message
+                    } else {
+                        "updates_unavailable"
+                    })))
+                },
+            )
+            .when_some(self.update_release.as_ref(), |el, release| {
+                let release = release.clone();
+                el.child(
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .items_center()
+                        .gap_2()
+                        .child(release.version.clone())
+                        .child(
+                            Button::new("open-stable-release")
+                                .ghost()
+                                .label(t("updates_open_release"))
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    if this.update_consent == saytwig_updates::Consent::Enabled
+                                        && this.update_release.as_ref() == Some(&release)
+                                        && !release.open()
+                                    {
+                                        this.update_message = "updates_browser_failed";
+                                    }
+                                    cx.notify();
+                                })),
+                        ),
+                )
+            })
     }
     fn cleanup(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let connected = self
@@ -1097,12 +1293,6 @@ impl Shell {
             .gap_4()
             .flex_1()
             .child(div().text_lg().child(t("cleanup_title")))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(rgb(0xb3b3b3))
-                    .child(t("cleanup_body")),
-            )
             .child(
                 div()
                     .flex()
@@ -1138,6 +1328,7 @@ impl Shell {
                 let id = profile.id.clone();
                 let retry_id = id.clone();
                 let logout_id = id.clone();
+                let plan_id = id.clone();
                 div()
                     .flex()
                     .items_center()
@@ -1172,11 +1363,11 @@ impl Shell {
                                 })),
                         )
                     })
-                    .when(!profile.connected, |el| {
+                    .when(profile.connected && !profile.plan_use_granted, |el| {
                         el.child(
-                            Button::new(("continue-profile", index))
+                            Button::new(("enable-plan-profile", index))
                                 .ghost()
-                                .label(t("continue_signin"))
+                                .label(t("enable_plan_use"))
                                 .disabled(self.account_busy)
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.disable_cleanup();
@@ -1185,35 +1376,67 @@ impl Shell {
                                     this.cleanup_profile = None;
                                     let cancel = CancellationToken::new();
                                     this.account_cancel = Some(cancel.clone());
-                                    this.send_cloud(CloudCommand::SignIn(
-                                        Some(retry_id.clone()),
+                                    this.send_cloud(CloudCommand::EnablePlanUse(
+                                        plan_id.clone(),
                                         cancel,
                                     ));
                                     cx.notify();
                                 })),
                         )
                     })
-                    .when(profile.connected, |el| {
-                        el.child(
-                            Button::new(("disconnect-profile", index))
-                                .ghost()
-                                .label(t("disconnect"))
-                                .disabled(self.account_busy)
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.disable_cleanup();
-                                    this.cleanup_models.clear();
-                                    this.cleanup_model = None;
-                                    let cancel = CancellationToken::new();
-                                    this.account_cancel = Some(cancel.clone());
-                                    this.send_cloud(CloudCommand::SignOut(
-                                        logout_id.clone(),
-                                        cancel,
-                                    ));
-                                    cx.notify();
-                                })),
-                        )
-                    })
+                    .child(
+                        Button::new(("continue-profile", index))
+                            .ghost()
+                            .label(t(if profile.connected {
+                                "signin_again"
+                            } else {
+                                "continue_signin"
+                            }))
+                            .disabled(self.account_busy)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.disable_cleanup();
+                                this.cleanup_models.clear();
+                                this.cleanup_model = None;
+                                this.cleanup_profile = None;
+                                let cancel = CancellationToken::new();
+                                this.account_cancel = Some(cancel.clone());
+                                this.send_cloud(CloudCommand::SignIn(
+                                    Some(retry_id.clone()),
+                                    cancel,
+                                ));
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Button::new(("disconnect-profile", index))
+                            .ghost()
+                            .label(t("disconnect"))
+                            .disabled(self.account_busy)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.disable_cleanup();
+                                this.cleanup_models.clear();
+                                this.cleanup_model = None;
+                                this.cleanup_profile = None;
+                                let cancel = CancellationToken::new();
+                                this.account_cancel = Some(cancel.clone());
+                                this.send_cloud(CloudCommand::SignOut(logout_id.clone(), cancel));
+                                cx.notify();
+                            })),
+                    )
             }))
+            .when(
+                self.profiles
+                    .iter()
+                    .any(|profile| profile.connected && !profile.plan_use_granted),
+                |el| {
+                    el.child(
+                        div()
+                            .text_sm()
+                            .text_color(rgb(0xb3b3b3))
+                            .child(t("plan_use_explanation")),
+                    )
+                },
+            )
             .when(self.account_busy, |el| {
                 el.child(
                     div()
@@ -1266,6 +1489,7 @@ impl Shell {
                             Button::new(("cleanup-model", index))
                                 .ghost()
                                 .label(model.display_name.clone())
+                                .selected(self.cleanup_model.as_ref() == Some(&model))
                                 .toggled(self.cleanup_model.as_ref() == Some(&model))
                                 .disabled(self.account_busy)
                                 .on_click(cx.listener(move |this, _, _, cx| {
@@ -1347,17 +1571,18 @@ impl Render for Shell {
             .flex_col()
             .size_full()
             .overflow_y_scroll()
-            .bg(rgb(0x101010))
+            .bg(rgb(0x0d0d0f))
             .text_color(rgb(0xf2f2f2))
             .text_size(px(14.))
-            .p_6()
+            .p_5()
             .gap_3()
             .child(self.navigation(cx))
             .when(
-                !matches!(
-                    self.model.engine,
-                    EngineState::Installed | EngineState::Ready
-                ),
+                self.page == Page::Dictation
+                    && !matches!(
+                        self.model.engine,
+                        EngineState::Installed | EngineState::Ready
+                    ),
                 |el| el.child(self.setup(cx)),
             )
             .when_some(self.model.notice, |el, key| {
@@ -1384,19 +1609,6 @@ impl Render for Shell {
                 )
             })
             .child(body)
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .border_t_1()
-                    .border_color(rgb(0x303030))
-                    .pt_3()
-                    .text_xs()
-                    .text_color(rgb(0x999999))
-                    .child("Phonon 2.5 English")
-                    .child(self.engine_label()),
-            )
     }
 }
 impl Drop for Shell {
@@ -1439,7 +1651,7 @@ impl Render for RecordingPill {
             .size_full()
             .px_3()
             .gap_2()
-            .bg(rgb(0x101010))
+            .bg(rgb(0x0d0d0f))
             .text_color(rgb(0xf2f2f2))
             .text_size(px(13.))
             .child(div().flex_1().child(label))

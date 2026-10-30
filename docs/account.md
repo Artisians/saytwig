@@ -25,14 +25,28 @@ All operations run on a Tokio worker/runtime, never the GPUI render thread.
    minutes; dropping a pending attempt closes its listener. Cancel using the
    supplied token and await the result. Do not abort account mutation futures.
 6. `activate(&id)` switches a previously connected registration. An unfinished
-   registration appears disconnected; offer Continue with that existing ID.
+   registration or uncertain refresh appears disconnected; offer Continue with
+   that existing ID. Keep a sign-in-again action available for saved connected
+   profiles too, because server-side disconnection may precede local detection.
+   If a connected profile lacks `plan_use_granted`, offer a separate explicit
+   **Enable ChatGPT plan use** action. Only that action calls
+   `begin_plan_use_authorization(&id, &cancel)`; it reuses the saved client and
+   requests `prompt=consent` with the full scopes. Ordinary sign-in does not force
+   consent, and rollout-only `force_reconsent` is not used. Successful OAuth still
+   does not enable transcript sharing; the user must enable that separately.
 7. `authorized_bearer(&cancel)` returns an `AuthorizedBearer` containing a
    `cleanup_service::Bearer`, its `profile_id`, and a `revoked` token. There is no
    raw-token accessor. **Select on both `revoked.cancelled()` and the job's
    cancellation token** while loading models or calling cleanup. Account changes
    invalidate existing leases. Keep the selected model associated with that
    profile and reload the model list after switching accounts.
-8. Before sign-out, cancel UI cleanup/sign-in work. Await `sign_out(&id, &cancel)`.
+8. Reconcile fresh `profiles()` after model loading and cleanup, including failed
+   bearer acquisition: rotation may have changed connection/permission state.
+   In the app worker these snapshots carry the original request ID. Cleanup
+   completion is emitted first, so original text is retained before UI recovery.
+9. Before sign-out, cancel UI cleanup/sign-in work. Await `sign_out(&id, &cancel)`.
+   Offer this action for disconnected saved profiles too: an uncertain refresh
+   may retain protected credentials that should be explicitly cleared/revoked.
    `LocalOnly` means local tokens were cleared but remote revocation was not
    confirmed; explain that the user can disconnect Saytwig in ChatGPT Settings.
    `AlreadySignedOut` means no local token was available; it is not evidence of
@@ -86,10 +100,21 @@ This does not promise erasure of copies inside TLS/HTTP/OS libraries.
 
 A lifetime per-user file lock excludes concurrent Saytwig account managers in
 other processes. Async state serialization prevents parallel refresh rotation.
-Before a refresh request, the stored session is marked disconnected. Consequently
-an interrupted or ambiguous exchange requires sign-in rather than replaying a
-possibly consumed rotating refresh token. Successful replacement persists tokens,
-scopes, and expiry together. This intentionally favors safety over silent recovery.
+Before a refresh request, a `refresh_pending` marker is saved with the existing
+protected token set. Pending credentials are not eligible for bearer leases,
+account activation, or another refresh attempt. An interrupted or ambiguous
+exchange therefore cannot replay a possibly consumed rotating refresh token;
+credentials remain protected for explicit reconnect/sign-out rather than being
+erased merely because a request failed. No HTTP status, including 429 or 5xx,
+automatically restores a pending token to reusable state. Only a validated
+successful replacement clears the marker and persists tokens/scopes/expiry
+together. A failed refresh or removed direct-use permission cancels previously
+issued bearer leases as well; revocation happens after the attempt returns, not
+at refresh entry, so it cannot cancel its own rotating request. Older records default to non-pending; older app versions reject the new
+field rather than silently downgrade it. The current conservative recovery is
+explicit reconnect, not automatic retry. Sign-out after an uncertain rotation
+reports `LocalOnly` even if the previous-token revocation responds 200, since an
+unknown replacement may exist.
 
 Native vault calls use blocking workers with ten-second caller deadlines. A
 worker that outlives its deadline keeps both the process lock and write-ordering
@@ -97,6 +122,11 @@ guard; later writes cannot overtake it. A store failure disables all leases.
 Network connect/request deadlines are five/fifteen seconds with bounded response
 bodies. Sign-out clears the local session first, then attempts discovered-endpoint
 revocation with bounded backoff. Cancellation cannot keep local tokens connected.
+The app's owned Tokio runtime uses a bounded shutdown after its command loop;
+an uninterruptible OS-vault worker may outlive that deadline, but cannot keep the
+UI shutdown waiting on the default unbounded runtime destructor. Returning from
+shutdown is not proof that the native worker's side effect completed; the process
+lock and write-order guard remain owned by that worker until it actually finishes.
 
 ## Evidence and remaining limits
 
@@ -125,7 +155,25 @@ live-account validation or a completed cross-platform runtime certification.
 - [Registration and sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in)
 - [Accounts and sessions](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions)
 - [Token reference](https://developers.openai.com/siwc/token-sharing-open-source/token-reference)
+- [Errors and recovery](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery)
+- [Models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)
 - [OpenID identity validation](https://developers.openai.com/siwc/website)
 - [Public OIDC discovery](https://auth.openai.com/.well-known/openid-configuration)
 
 Windows replacement reference: [MoveFileExW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw).
+
+## Integration re-audit (2026-10-29)
+
+Static inspection confirmed catalog results are tagged by account, the worker
+checks that tag against its bearer lease before inference, and switching accounts
+clears the catalog. Transcript sharing defaults off, account/consent changes cancel
+old permits, inference uses only public Responses with `store=false` and
+`stream=true`, and failed/cancelled cleanup retains the original transcript.
+
+Closed source-level recovery gaps: an explicit supported plan-consent API and
+worker command now exist; model/cleanup completion reconciles fresh profile state;
+uncertain refresh retains blocked protected credentials instead of erasing them;
+and cloud-runtime shutdown is bounded around uninterruptible vault workers.
+These are source/build findings, not native OAuth or real-provider execution.
+The native window/rendering issue is owned separately and is not evidence that
+account or cleanup flows have been exercised.

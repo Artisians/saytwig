@@ -9,6 +9,7 @@ use std::{sync::mpsc, thread};
 pub(crate) enum Command {
     Accounts,
     SignIn(Option<ProfileId>, CancellationToken),
+    EnablePlanUse(ProfileId, CancellationToken),
     Activate(ProfileId),
     SignOut(ProfileId, CancellationToken),
     Models(CancellationToken),
@@ -80,6 +81,11 @@ impl Cloud {
                         let _ = output.send(Event::Finished);
                     });
                 }
+                // Native-vault calls cannot be force-cancelled. Account methods
+                // bound their caller wait and retain ownership/locking inside
+                // those blocking jobs; ordinary Runtime drop would wait forever
+                // for a stuck OS call after the UI has requested shutdown.
+                runtime.shutdown_timeout(std::time::Duration::from_secs(1));
             })?;
         Ok(Self {
             commands,
@@ -134,6 +140,22 @@ async fn perform(manager: &AccountManager, command: Command, output: &Output) {
             }
             profiles(manager, output).await;
         }
+        Command::EnablePlanUse(profile, cancel) => {
+            let outcome = async {
+                let pending = manager
+                    .begin_plan_use_authorization(&profile, &cancel)
+                    .await?;
+                if open::that_detached(pending.authorization_url()).is_err() {
+                    cancel.cancel();
+                }
+                manager.complete_sign_in(pending, &cancel).await
+            }
+            .await;
+            if let Err(error) = outcome {
+                let _ = output.send(Event::Notice(error_key(error)));
+            }
+            profiles(manager, output).await;
+        }
         Command::Activate(profile) => {
             if let Err(error) = manager.activate(&profile).await {
                 let _ = output.send(Event::Notice(error_key(error)));
@@ -152,24 +174,28 @@ async fn perform(manager: &AccountManager, command: Command, output: &Output) {
             }
             profiles(manager, output).await;
         }
-        Command::Models(cancel) => match manager.authorized_bearer(&cancel).await {
-            Ok(lease) => match CleanupClient::new() {
-                Ok(client) => {
-                    let models = tokio::select! {biased;_ = lease.revoked.cancelled()=>None,result=client.models(&lease.bearer,&cancel)=>result.ok()};
-                    let _ = output.send(
-                        models
-                            .map(|models| Event::Models(lease.profile_id, models))
-                            .unwrap_or(Event::Notice("models_unavailable")),
-                    );
+        Command::Models(cancel) => {
+            match manager.authorized_bearer(&cancel).await {
+                Ok(lease) => match CleanupClient::new() {
+                    Ok(client) => {
+                        let models = tokio::select! {biased;_ = lease.revoked.cancelled()=>None,result=client.models(&lease.bearer,&cancel)=>result.ok()};
+                        let _ = output.send(
+                            models
+                                .map(|models| Event::Models(lease.profile_id, models))
+                                .unwrap_or(Event::Notice("models_unavailable")),
+                        );
+                    }
+                    Err(_) => {
+                        let _ = output.send(Event::Notice("models_unavailable"));
+                    }
+                },
+                Err(error) => {
+                    let _ = output.send(Event::Notice(error_key(error)));
                 }
-                Err(_) => {
-                    let _ = output.send(Event::Notice("models_unavailable"));
-                }
-            },
-            Err(error) => {
-                let _ = output.send(Event::Notice(error_key(error)));
-            }
-        },
+            };
+            // Refresh may change the local session even if catalog loading fails.
+            profiles(manager, output).await;
+        }
         Command::Clean {
             generation,
             original,
@@ -188,6 +214,9 @@ async fn perform(manager: &AccountManager, command: Command, output: &Output) {
                 _ => None,
             };
             let _ = output.send(Event::Cleaned(generation, result));
+            // Send original-text completion first, then reconcile account state
+            // with this same request ID so the UI can clear stale model/consent.
+            profiles(manager, output).await;
         }
         Command::Shutdown => {}
     }

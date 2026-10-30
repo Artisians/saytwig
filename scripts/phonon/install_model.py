@@ -107,7 +107,25 @@ def reconstruct(archive: Path, destination: Path, pin: dict) -> None:
     reconstruction.rmdir()
 
 
+
+def require_supported_host():
+    if os.name != "nt":
+        return
+    import ctypes
+    from ctypes import wintypes
+    api = ctypes.WinDLL("kernel32", use_last_error=True)
+    api.GetCurrentProcess.restype = wintypes.HANDLE
+    api.IsWow64Process2.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.USHORT), ctypes.POINTER(wintypes.USHORT))
+    api.IsWow64Process2.restype = wintypes.BOOL
+    process, native = wintypes.USHORT(), wintypes.USHORT()
+    if not api.IsWow64Process2(api.GetCurrentProcess(), ctypes.byref(process), ctypes.byref(native)):
+        raise RuntimeError("Cannot determine the native Windows architecture")
+    if native.value != 0x8664 or process.value != 0 or ctypes.sizeof(ctypes.c_void_p) != 8:
+        raise RuntimeError("Saytwig requires native Windows x64; Windows on ARM and x86 are not supported")
+
+
 def main() -> None:
+    require_supported_host()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
     parser.add_argument("destination", type=Path)

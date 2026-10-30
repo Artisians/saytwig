@@ -19,8 +19,8 @@ of the real app. Do not relabel synthetic test harnesses as manual QA.
 
 ```sh
 cargo fmt --all -- --check
-CARGO_BUILD_WARNINGS=deny cargo clippy --workspace --lib --bins -- -D warnings
-cargo build --workspace --lib --bins
+CARGO_BUILD_WARNINGS=deny cargo clippy --workspace --lib --bins --locked -- -D warnings
+cargo build --workspace --lib --bins --locked
 ```
 
 GPUI review also checks background ownership, cancellation, no model/audio/network
@@ -37,10 +37,16 @@ cleanup disabled/disconnected/revoked, history retention, and closing while work
 is pending. Use non-sensitive sample speech. Never grant account permissions or
 access existing credentials just to complete QA without user authorization.
 
-The build execution sandbox has no display; workspace-local Xvfb cannot create
-its listening sockets there. A separate supported cloud Linux desktop is exposed
-by the computer-control tool's full documentation. Establish application access
-on that cloud surface before making native visual claims; do not assume that
-its files or app environment match the build executor. The user's computer is
-explicitly out of scope. Concept PNGs are not native app screenshots, and builds
-or static review alone leave platform behavior unverified.
+The build execution sandbox has no display; its Xvfb route cannot create listening
+sockets. The separately supported cloud Linux desktop shares the workspace, and
+application access has now been established through its documented computer-control
+API. The optimized Linux artifact identified in [BUILD_STATUS](BUILD_STATUS.md)
+rendered using the existing Mesa software Vulkan driver with non-shared-memory
+presentation. Navigation, empty history and a persisted vocabulary preference were
+inspected hands-on. No account permission or microphone was opened for those flows.
+
+Record newer native builds separately: a previous screenshot does not verify a
+later source change. This cloud software-rendered inspection is not Windows device
+execution or a performance benchmark. The user's computer is explicitly out of
+scope. Concept PNGs are not native screenshots; builds and static review alone do
+not establish runtime behavior. Keep any remaining gaps in BUILD_STATUS current.

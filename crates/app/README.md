@@ -6,7 +6,10 @@ extension shell, editor features, or old Handy implementation is copied into thi
 crate. Impeccable's owner-approved compact black concept informed the interface;
 concept PNGs are not screenshots of this native application.
 
-## Run on a supported desktop
+## Native development launch
+
+The product release target is Windows x64 only. Linux/macOS builds are development
+paths, not a promise of supported product releases. Windows ARM builds fail early.
 
 ```sh
 cargo run -p dictation-app --bin saytwig
@@ -67,7 +70,21 @@ button; constructing the app never downloads a model or opens a microphone.
   an eligible account and choosing one of its models. Catalogs and requests are
   tied to the active profile identity; the bearer identity is checked immediately
   before cleanup. Account switching/revocation or failure retains original text.
-  No API-key or billing fallback exists.
+  No API-key or billing fallback exists. Connected accounts without plan-use permission
+  have an explicit browser consent action; sharing remains off. Saved accounts always
+  offer sign-in recovery and sign-out, including disconnected/pending credentials.
+- Preferences offer session-only, default-off permission for stable release checks.
+  Permission does not initiate a request: a separate explicit Check action contacts
+  GitHub. A dedicated one-slot worker uses the updater's 15-second/256-KiB bounds;
+  cancellation discards the result and prevents a new check until the old request
+  finishes. Closing the app suppresses its result. No startup/background checking,
+  asset download or automatic installation is implemented. Only validated release
+  links can be opened, and only after an explicit click.
+- `SAYTWIG_BUILD_CHANNEL` and `SAYTWIG_BUILD_COMMIT` are compile-time CI metadata;
+  unknown/absent channel means development. The displayed source version is Cargo's
+  package version. Nightly/development checks deliberately use prerelease baseline
+  `0.0.0-0` to offer any stable release, not equate development 0.1.0 with stable
+  0.1.0. The UI states that such availability is not an upgrade recommendation.
 
 ## Ownership and cancellation
 
@@ -103,11 +120,17 @@ CARGO_BUILD_WARNINGS=deny cargo clippy --workspace --lib --bins -- -D warnings
 cargo build -p dictation-app --bin saytwig
 ```
 
-The build execution sandbox has no display, and its permitted Xvfb launch cannot
-bind listening sockets. A separate supported cloud Linux desktop has since been
-identified; application access there is still being established.
-Compilation/linting and source review do not establish physical microphone behavior,
-OS permission prompts, keyboard navigation, screen-reader behavior, native rendering,
-or end-to-end account consent. Those are real-app inspection gates, not claims of
-completed validation. No actual account grant or transcript cleanup was performed
-while building this interface.
+The build execution sandbox has no display; its permitted Xvfb launch cannot bind
+listening sockets. A separate supported cloud Linux desktop **did render the actual
+optimized app**, after the coordinator used process-local `MESA_VK_WSI_DEBUG=noshm`,
+`VK_DRIVER_FILES` pointing to the workspace Lavapipe manifest, and
+`LIBGL_ALWAYS_SOFTWARE=true`. This selects normal software rendering and non-SHM
+presentation; it does not change host IPC, permissions or sandboxing. The original
+black-window/Mesa SHM failure remains relevant environment evidence, not a successful
+render. Software rendering is not GPU-performance evidence.
+
+Compilation, source review and rendered controls do not establish physical microphone
+behavior, Windows target insertion, OS permission prompts, screen-reader behavior or
+end-to-end account consent. These remain separate hands-on acceptance gates. No actual
+account grant or transcript cleanup was performed while building this interface.
+No automated tests or test scaffolding are added or run.

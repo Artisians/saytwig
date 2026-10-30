@@ -1,88 +1,86 @@
 # Development build status — 2026-10-29
 
-This is a freshly authored, unreleased Saytwig source snapshot. It is not an
-installer or a signed release. The new standalone `Artisians/saytwig` repository
-has been created and verified (repository ID 1439053466), leaving the old
-repository unchanged. Earlier reset/rename handoff instructions are superseded.
-Initial app source is being submitted through a draft PR and review gates.
+Saytwig is a newly authored, unreleased local speech recognition app. The standalone
+[repository](https://github.com/Artisians/saytwig) is public; the previous Handy
+fork is unchanged. Reset/rename handoff instructions are superseded.
 
-## Observed checks
+## Published source and CI
 
-- Rust/Cargo 1.99.1; GPUI Kit 0.8.1 with its matching gpui-pre 0.3.10.
-- Final workspace `cargo fmt --all -- --check`: passed.
-- Final workspace `CARGO_BUILD_WARNINGS=deny cargo clippy --workspace --lib --bins --locked -- -D warnings`: passed.
-- Final native Linux `saytwig` executable linked after integrating the reviewed
-  account, cleanup, clipboard, cancellation and settings-load fixes.
-- Linux and Windows GNU production-only Clippy passed for domain/audio/desktop
-  and account; Phonon passed Linux Clippy and Windows GNU compile checking.
-- Linux and Windows MSVC CI dependency/feature metadata resolved. GitHub CI has
-  not run because this source has not been published.
-- Agent-driven execution of the actual Linux binary returned exit 1 with:
-  `Saytwig needs a native desktop session. No microphone or account was opened.`
-  This validates the unsupported-display path, not a rendered application.
-- A separate hands-on call through the fresh production speech bridge used
-  verified Fermion 0.2.15 / Phonon 2.5 English and a public 11-second audio clip.
-  It completed correctly: readiness 6.419 seconds, inference 1.423 seconds during
-  concurrent builds. This is not a Windows or complete application benchmark.
-- A second bounded manual bridge operation kept one child resident: new-process
-  readiness announcement 5.461 seconds, first decode 1.146 seconds, second decode
-  0.646 seconds, identical successful output. The child was explicitly reaped.
-  OS caches were uncontrolled and there was only one startup/two requests; this
-  is evidence of resident reuse, not a general speedup. It excludes the Rust
-  integrity pass/actor, microphone, UI, and Windows. Details are in
-  `crates/phonon/README.md`.
+- Initial source: [`9fed89d`](https://github.com/Artisians/saytwig/tree/9fed89dae1b9666dd9e913ac0443888fa8a15ac2), on `nightly` (86 remotely verified files).
+- [Draft PR #1](https://github.com/Artisians/saytwig/pull/1) proposes promotion to `stable`. `stable` and `main` still contain the repository seed, not a validated app release.
+- Both initial [push CI](https://github.com/Artisians/saytwig/actions/runs/40973785994) and [PR CI](https://github.com/Artisians/saytwig/actions/runs/40973825844) passed: formatting, strict production Clippy, native Linux linking and native Windows x64/MSVC linking.
+- A successful Windows build is **not** Windows device, microphone, shortcut, paste or UI execution evidence.
+- Follow-up source changes are under review. Initial green CI does not validate a newer commit automatically. No stable release, signed installer or distributable speech runtime is published.
 
-The pre-insertion optimized Linux build completed with the pinned toolchain via
-`CARGO_BUILD_WARNINGS=deny cargo build --release --locked --bin saytwig`.
-Its executable was **41,541,568 bytes (39.6 MiB)**, SHA-256
-`ae9c99eba9e3e1d208fd731e81095eecc1d01d3cc5b67af216eea390ff0dc9ad`.
-It also reached the same truthful no-desktop-session exit when executed.
-This is an executable-only measurement, excluding model weights, the Python /
-PyTorch speech runtime, and system libraries. It is not a Windows installer size,
-an old-versus-new application comparison, or proof of native UI behavior.
+## Build and native inspection evidence
 
-For context only, the unoptimized debug ELF was 561,984,104 bytes, SHA-256
-`378107e8f11a02e957a641d9a5521b0d70d38022075aa2488ca1263b2e687686`.
-Those debug and optimized artifacts precede the automatic-insertion integration;
-the changed source requires a fresh final build before its artifact is delivered.
+Pinned Rust/Cargo 1.99.1; GPUI Kit 0.8.1 with matching gpui-pre 0.3.10.
+Workspace formatting and production-only strict Clippy passed for the integrated
+paste-enabled source before its optimized Linux build. Relevant later account,
+platform and interface changes have separate format/lint checks; a refreshed
+native debug build is in progress and is not represented by the artifact below.
 
-## Review corrections included
+The paste-enabled optimized Linux executable is **41,552,320 bytes (39.6 MiB)**:
 
-Independent source review found and corrected stale account/model binding,
-late-completion cancellation ownership, incorrect save acknowledgements,
-deferred clipboard side effects, microphone cancellation during actor work and
-startup, dangling installer links, and Windows protected-store durability and
-fail-closed persistence. Static review is not proof of every runtime path.
+```text
+SHA-256 5b394883de11e9611c0fe32716b8a19caf08988df0bd72e09d3c41a14ca805e8
+```
 
-## Remaining release gates
+This executable-only measurement excludes model weights, Python/PyTorch runtime
+and system libraries. It is not a Windows installer size or an old-versus-new
+performance comparison. The earlier pre-insertion executable was 41,541,568 bytes.
 
-The build execution sandbox has no display and cannot create an Xvfb display
-socket. The computer-control tool's full documentation separately exposes a
-supported cloud Linux desktop; this route has now been identified, but access to
-the compiled application there is not yet established. Actual native rendering /
-click flows, microphone permission/device behavior, accessibility, Windows ABI /
-runtime execution, and complete app dictation remain unverified. No real app
-account sign-in/grant, refresh, or paid cleanup request was performed. macOS
-platform execution is also unverified. The user's computer remains out of scope.
+The paste-enabled binary was launched on the supported **cloud Linux desktop**.
+It rendered through the existing Mesa software Vulkan driver using its documented
+non-shared-memory presentation option. Observed hands-on flows:
 
-The Windows speech payload is approximately 665 MB plus its inventory; only
-19 unused PyTorch linker inputs were omitted (859,703,748 bytes). It is not a
-signed/distributed runtime. Windows MSVC prerequisites and the exact shipped
-license inventory remain packaging gates.
+- Missing-runtime state rendered; Start was unavailable and cloud cleanup stayed off.
+- Dictation, History and Preferences navigation worked.
+- A vocabulary preference was entered and saved; the success notice and versioned
+  local settings file agreed. No account credentials or audio were used.
+- Empty history rendered correctly.
 
-Windows shortcut-triggered automatic paste is now wired into the interface and
-independently source-reviewed, with cancellation, focus/modifier checks, a
-generation-bound result, and explicit Copy fallback. Manual Start remains
-copy-only. A dispatched input batch does not prove target acceptance; a focus or
-clipboard change can still race dispatch. Native Windows validation remains
-required. The latest integration is awaiting its final native rebuild.
+These observations concern that exact binary, not subsequent design refinements.
+Software-rendered cloud inspection does not establish native GPU performance,
+Windows behavior, screen-reader support, or complete dictation. The headless
+executor also correctly exits with a native-desktop-required message rather than
+opening microphone/account resources.
 
-GitHub update-check infrastructure is not yet connected to the interface and
-does not install updates. Only `saytwig-vX.Y.Z` tags are eligible, preventing
-unrelated or legacy tags from being relabeled as Saytwig updates.
-Signed updater installation, installer packaging and release publication are
-not configured or claimed complete.
+## Speech engine observations
 
-The owner explicitly chose no automated test files/suites. None are shipped in
-this source snapshot; build, lint, static review and hands-on app operation are
-the current quality workflow. See AGENTS.md and docs/quality.md.
+A hands-on call through the fresh production speech bridge used verified Fermion
+0.2.15 / Phonon 2.5 English and a public 11-second audio clip. Initial readiness
+was 6.419 seconds and inference 1.423 seconds during concurrent work.
+
+A second bounded manual operation kept one child resident: new-process readiness
+5.461 seconds, first decode 1.146 seconds, second decode 0.646 seconds, with
+identical successful output and explicit process reaping. OS caches were
+uncontrolled; one startup and two requests are evidence of resident reuse, not a
+general speedup. These measurements exclude the Rust integrity pass/actor,
+microphone, UI and Windows. Details: [speech bridge](../crates/phonon/README.md).
+
+## Remaining product and release gates
+
+- Full microphone-to-transcript operation through the native app; interruption,
+  repeated capture, accessibility and target-application insertion on Windows x64.
+- Real supported account sign-in/grant/refresh and opt-in cleanup. No credentials,
+  OAuth grants or paid cleanup requests were used for development QA.
+- Windows shortcut-triggered paste is implemented and independently reviewed;
+  manual Start remains copy-only. Cancellation/focus/modifier checks reduce races
+  but cannot prove another application accepted a dispatched input batch.
+- Follow-up UI source wires explicit, default-off GitHub contact and stable-release
+  checking. It does **not** download or install updates. Only `saytwig-vX.Y.Z`
+  releases are eligible. No signing keys or automatic installation are configured.
+- Consumer runtime/model installation, application packaging and full dependency
+  redistribution notices/source obligations. The development Windows speech payload
+  is approximately 665 MB; it is not a signed or redistributable runtime. In particular,
+  the bundled soundfile/libsndfile dependency still needs exact corresponding-source
+  and relinking obligations resolved before redistribution.
+- Performance audit findings include producer/event backlog and history allocation
+  bounds; policies are not proof these implementation gaps are closed. User history
+  must not be silently pruned to meet a memory target.
+- macOS native execution is unverified. The user's computer remains out of scope.
+
+The owner chose **no automated test files/suites**. Build, formatting, lint,
+independent source review and hands-on app inspection are the quality workflow.
+See [quality guidance](quality.md) and [engineering rules](../AGENTS.md).

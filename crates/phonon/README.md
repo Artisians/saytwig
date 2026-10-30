@@ -1,7 +1,10 @@
 # Local Phonon service
 
 New application integration with the official Fermion Python API; no UI framework
-or microphone capture dependency. All blocking calls belong on a background
+or microphone capture dependency. Windows distribution is **native x64 only**;
+Windows ARM (including x64 emulation) and Windows x86 are unsupported. See the
+[development packaging contract](../../scripts/phonon/WINDOWS_X64.md).
+All blocking calls belong on a background
 thread, including bundle/model verification. The service never downloads on
 startup, warm-up, or transcription.
 
@@ -167,3 +170,28 @@ opening the worker, microphone, or account. This environment has no usable
 native desktop session. There is no supported headless/file-transcription app
 route, and none was invented for QA. Rust-actor ASR, native microphone/UI flow,
 and Windows execution therefore remain outside this evidence.
+
+
+### Windows x64 packaging follow-up, 2026-10-29 23:38 UTC
+
+The existing known development payload was integrity-checked and refreshed in
+place without duplicating its native runtime. The updated inventory declares
+`windows-x86_64`, includes the standalone architecture guards and the complete
+retained-text index, and contains **20,484 files / 664,999,327 payload bytes**.
+Its development manifest SHA-256 is
+`291c56eed6455f85b2f4a57e00d74925c058e2bff593f79fdd69969f59fea83c`.
+Previous hashes above describe earlier observations, not the current Windows
+payload. None is a signed release trust anchor.
+
+The generated `notices/DEPENDENCIES.json` has **42 distribution records and 99
+retained full-text records** (46,032 bytes of index data). Every indexed wheel
+text was compared byte-for-byte with its pinned upstream archive; the otherwise
+missing tokenizers license uses the existing separately pinned upstream text.
+Python and model notices remain separately retained. This completes the retained
+text inventory, **not** the open native-source/relinking redistribution review
+called out in [NOTICES.md](../../scripts/phonon/NOTICES.md).
+
+The architecture changes passed Linux production-only Clippy and a Windows x64
+GNU `cargo check` of this library with the staged MinGW compiler. They have not
+been executed on native Windows or Windows-on-ARM. The current Windows app
+MSVC build and actual application operation remain separate release gates.

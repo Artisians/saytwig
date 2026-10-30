@@ -13,6 +13,7 @@ phonon-service = { path = "../phonon" }
 dictation-desktop = { path = "../desktop" }
 saytwig-account = { path = "../account" }
 cleanup-service = { path = "../cleanup" }
+saytwig-updates = { path = "../updates" }
 tokio = { version = "1", features = ["rt", "time", "net", "macros"] }
 open = "5"
 anyhow.workspace = true

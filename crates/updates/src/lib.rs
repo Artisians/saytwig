@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 pub const REPOSITORY: &str = "Artisians/saytwig";
 pub const RELEASES_URL: &str = "https://github.com/Artisians/saytwig/releases";
-/// Distinguishes fresh Saytwig releases from preserved Handy release history.
+/// Identifies fresh Saytwig releases independently of unrelated or legacy tags.
 pub const RELEASE_TAG_PREFIX: &str = "saytwig-v";
 const ENDPOINT: &str = "https://api.github.com/repos/Artisians/saytwig/releases/latest";
 const MAX_MANIFEST: usize = 256 * 1024;
@@ -133,8 +133,8 @@ fn inspect_response(
     if release.tag_name.len() > 128 {
         return Err(UpdateError::Untrusted);
     }
-    // A repository rename preserves old releases. Never relabel a Handy tag as
-    // a Saytwig update merely because its SemVer is higher than this fresh app.
+    // Never relabel an unrelated or legacy tag as a Saytwig update merely
+    // because its SemVer is higher than this fresh app.
     let Some(version_text) = release.tag_name.strip_prefix(RELEASE_TAG_PREFIX) else {
         return Ok(CheckResult::NoCompatibleRelease);
     };

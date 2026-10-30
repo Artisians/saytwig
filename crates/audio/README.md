@@ -3,6 +3,9 @@
 Newly authored microphone capture and PCM normalization for the native app.
 No legacy Handy implementation is imported or copied.
 
+Windows builds support **x64 only**; other Windows architectures fail compilation
+with an explicit diagnostic. This restriction does not apply to macOS/Linux ARM.
+
 - Microphone acquisition is explicit through `Microphone::start` or
   `Microphone::start_cancellable`. Prefer the latter with the request's owned,
   nonblocking cancellation predicate. It checks before setup, around stream play,

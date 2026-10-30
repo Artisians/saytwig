@@ -1,9 +1,13 @@
 //! Saytwig's compact native shell, backed by the matched GPUI Kit stack.
+#[cfg(all(target_os = "windows", not(target_arch = "x86_64")))]
+compile_error!("Saytwig supports Windows x64 only; use the x86_64-pc-windows-msvc target.");
+
 mod clipboard;
 mod cloud;
 mod model;
 mod shell;
 mod strings;
+mod updates;
 mod worker;
 
 use gpui_kit::component::{Theme, ThemeMode};
@@ -25,7 +29,7 @@ pub fn run() -> anyhow::Result<()> {
             theme.font_size = px(14.);
             theme.radius = px(6.);
             theme.shadow = false;
-            theme.background = rgb(0x101010).into();
+            theme.background = rgb(0x0d0d0f).into();
             theme.foreground = rgb(0xf2f2f2).into();
             theme.border = rgb(0x303030).into();
             theme.input = rgb(0x191919).into();
@@ -48,10 +52,10 @@ pub fn run() -> anyhow::Result<()> {
             theme.ring = rgb(0xa5d6c3).into();
         });
         shell::bind_keys(cx);
-        let bounds = Bounds::centered(None, size(px(840.), px(590.)), cx);
+        let bounds = Bounds::centered(None, size(px(760.), px(520.)), cx);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
-            window_min_size: Some(size(px(640.), px(500.))),
+            window_min_size: Some(size(px(620.), px(440.))),
             titlebar: Some(TitlebarOptions {
                 title: Some("Saytwig".into()),
                 ..Default::default()

@@ -120,6 +120,10 @@ struct Tokens {
     expires_at: u64,
     earliest_refresh_at: Option<u64>,
     scopes: Vec<String>,
+    // A rotating request may have reached the issuer even if its response did
+    // not. Preserve this protected token set for revocation, never for replay.
+    #[serde(default)]
+    refresh_pending: bool,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -306,18 +310,31 @@ impl AccountManager {
         let mut state = self.0.state.lock().await;
         self.revoke_leases();
         state.healthy()?;
-        if !state
-            .saved
-            .registrations
-            .iter()
-            .any(|r| &r.id == id && r.tokens.is_some())
-        {
+        if !state.saved.registrations.iter().any(|r| {
+            &r.id == id
+                && r.tokens
+                    .as_ref()
+                    .is_some_and(|tokens| !tokens.refresh_pending)
+        }) {
             return Err(AccountError::NotConnected);
         }
         state.invalidate();
         state.saved.active = Some(id.clone());
         self.persist(&mut state).await
     }
+    /// Start only after the user explicitly chooses to enable ChatGPT plan use
+    /// for this saved registration. This is OAuth consent, not transcript-sharing
+    /// consent. Ordinary sign-in never forces consent; no rollout-only flag is used.
+    pub async fn begin_plan_use_authorization(
+        &self,
+        selected: &ProfileId,
+        cancel: &CancellationToken,
+    ) -> Result<PendingSignIn, AccountError> {
+        let mut pending = self.begin_sign_in(Some(selected), cancel).await?;
+        pending.request_plan_consent()?;
+        Ok(pending)
+    }
+
     pub async fn begin_sign_in(
         &self,
         selected: Option<&ProfileId>,
@@ -534,6 +551,7 @@ impl AccountManager {
         let tokens = state.saved.registrations[index]
             .tokens
             .as_ref()
+            .filter(|tokens| !tokens.refresh_pending)
             .ok_or(AccountError::Reauthorize)?;
         if !tokens
             .scopes
@@ -551,7 +569,13 @@ impl AccountManager {
                 return Err(AccountError::Reauthorize);
             }
             let provider = oidc::Provider::discover(cancel).await?;
-            self.refresh(&mut state, index, &provider, cancel).await?;
+            if let Err(error) = self.refresh(&mut state, index, &provider, cancel).await {
+                // Pending/disconnected state must also invalidate leases issued
+                // before this attempt. Do this after the attempt returns, not
+                // at entry: its linked cancellation includes the same epoch.
+                self.revoke_leases();
+                return Err(error);
+            }
         }
         if cancel.is_cancelled() {
             return Err(AccountError::Cancelled);
@@ -559,12 +583,14 @@ impl AccountManager {
         let tokens = state.saved.registrations[index]
             .tokens
             .as_ref()
+            .filter(|tokens| !tokens.refresh_pending)
             .ok_or(AccountError::Reauthorize)?;
         if !tokens
             .scopes
             .iter()
             .any(|scope| scope == oidc::DIRECT_SCOPE)
         {
+            self.revoke_leases();
             return Err(AccountError::Permission);
         }
         let bearer = cleanup_service::Bearer::new(tokens.access.as_str().to_owned())
@@ -589,13 +615,19 @@ impl AccountManager {
         let registration = &mut state.saved.registrations[index];
         let client = registration.client_id.clone();
         let subject = registration.subject.clone().ok_or(AccountError::Identity)?;
-        let old = registration
+        let tokens = registration
             .tokens
-            .take()
+            .as_mut()
             .ok_or(AccountError::Reauthorize)?;
-        // Persist a disconnected intent BEFORE sending the rotating token.
-        // Crash/cancel/ambiguous response means reauthorization, not unsafe retry
-        // of a possibly consumed refresh token after restart.
+        if tokens.refresh_pending {
+            return Err(AccountError::Reauthorize);
+        }
+        tokens.refresh_pending = true;
+        let old = tokens.clone();
+        // Persist the pending marker BEFORE sending the rotating token. Keep
+        // the old credentials protected for explicit revocation/reconnection,
+        // but never lease or retry them after an uncertain response. A 5xx does
+        // not prove that server-side rotation did not occur.
         self.persist(state).await?;
         let response = provider
             .token(
@@ -666,7 +698,10 @@ impl AccountManager {
             Ok(provider) => provider,
             Err(_) => return Ok(LogoutOutcome::LocalOnly),
         };
-        Ok(if provider.revoke(&client, &tokens.refresh, cancel).await {
+        let confirmed = provider.revoke(&client, &tokens.refresh, cancel).await;
+        // With an uncertain rotation, a 200 for the previous token may only
+        // confirm it was already invalid, not revoke an unknown replacement.
+        Ok(if confirmed && !tokens.refresh_pending {
             LogoutOutcome::Revoked
         } else {
             LogoutOutcome::LocalOnly
@@ -709,6 +744,7 @@ fn tokens_from_response(
             .ok_or(AccountError::Identity)?,
         earliest_refresh_at: response.earliest_refresh_at,
         scopes,
+        refresh_pending: false,
     })
 }
 fn snapshot(registration: &Registration, active: &Option<ProfileId>) -> Profile {
@@ -716,7 +752,10 @@ fn snapshot(registration: &Registration, active: &Option<ProfileId>) -> Profile 
         id: registration.id.clone(),
         label: registration.label.clone(),
         email: registration.email.clone(),
-        connected: registration.tokens.is_some(),
+        connected: registration
+            .tokens
+            .as_ref()
+            .is_some_and(|tokens| !tokens.refresh_pending),
         plan_use_granted: registration
             .tokens
             .as_ref()

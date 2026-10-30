@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+from email.parser import BytesParser
 import hashlib
 import json
 import os
@@ -18,6 +19,17 @@ import urllib.request
 import zipfile
 
 SOURCE = Path(__file__).resolve().parent
+TARGET = "windows-x86_64"
+
+
+def require_x64_assets(assets: dict) -> None:
+    if assets.get("target") != TARGET or not assets["python"]["filename"].endswith("-embed-amd64.zip"):
+        raise ValueError("Only the pinned Windows x64 runtime may be assembled")
+    for wheel in assets["wheels"]:
+        # Pure-Python any wheels are portable; every native wheel must be x64.
+        platform_tags = wheel["filename"].removesuffix(".whl").rsplit("-", 1)[-1].split(".")
+        if not set(platform_tags) <= {"any", "win_amd64"}:
+            raise ValueError("Runtime lock contains a non-Windows-x64 wheel")
 
 
 def sha256_file(path: Path) -> str:
@@ -131,10 +143,53 @@ def omit_link_inputs(root: Path) -> list[dict]:
     return rows
 
 
+def write_notice_index(root: Path, assets: dict, cache: Path) -> None:
+    """Index complete retained upstream texts, including bundled-library notices.
+
+    This is not a legal certification or a substitute for source/relinking
+    obligations associated with LGPL and other vendor components.
+    """
+    packages = []
+    for wheel in assets["wheels"]:
+        with zipfile.ZipFile(cache / wheel["filename"]) as archive:
+            metadata_name = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
+            metadata = BytesParser().parsebytes(archive.read(metadata_name))
+            texts = []
+            for name in archive.namelist():
+                if name.endswith("/") or not any(term in name.rsplit("/", 1)[-1].upper() for term in ("LICENSE", "LICENCE", "COPYING", "NOTICE", "AUTHORS", "COPYRIGHT")):
+                    continue
+                parts = checked_components(name)
+                if parts[0].endswith(".data"):
+                    raise ValueError("Review relocated wheel license paths before packaging")
+                path = root / "python/Lib/site-packages" / name
+                if not path.is_file() or path.is_symlink() or path.read_bytes() != archive.read(name):
+                    raise ValueError("Upstream license text was not preserved verbatim")
+                texts.append({"path": path.relative_to(root).as_posix(), "sha256": sha256_file(path), "bytes": path.stat().st_size})
+            if not texts and wheel["name"] == "tokenizers":
+                path = root / "notices/TOKENIZERS-LICENSE"
+                pin = next(row for row in assets["notices"] if row["filename"] == "TOKENIZERS-LICENSE")
+                if not asset_matches(path, pin):
+                    raise ValueError("Missing independently pinned tokenizers license")
+                texts.append({"path": path.relative_to(root).as_posix(), "sha256": pin["sha256"], "bytes": pin["bytes"]})
+            if not texts:
+                raise ValueError("A runtime dependency has no retained license text")
+            packages.append({"name": wheel["name"], "version": wheel["version"],
+                             "upstream_wheel_url": wheel["url"], "wheel_sha256": wheel["sha256"],
+                             "license_expression": metadata.get("License-Expression"),
+                             "license_classifiers": [value for value in metadata.get_all("Classifier", []) if value.startswith("License ::")],
+                             "metadata_path": "python/Lib/site-packages/" + metadata_name,
+                             "retained_texts": texts})
+    notice_index = {"schema": 1, "target": TARGET, "packages": packages,
+                    "scope": "Verbatim upstream runtime license and notice texts; native-component source/relinking compliance needs separate review",
+                    "python_license": "python/LICENSE.txt", "model_notices": ["notices/" + row["filename"] for row in assets["notices"] if row["filename"].startswith("MODEL-")]}
+    (root / "notices/DEPENDENCIES.json").write_text(json.dumps(notice_index, indent=2) + "\n", encoding="utf-8")
+
+
 def check_bundle(root: Path) -> dict:
     manifest = json.loads((root / "bundle.json").read_text(encoding="utf-8"))
-    if manifest.get("schema") != 1 or manifest.get("files") != inventory(root):
+    if manifest.get("schema") != 1 or manifest.get("target") != TARGET or manifest.get("files") != inventory(root):
         raise ValueError("Bundle inventory mismatch")
+    require_x64_assets(json.loads((root / "assets.json").read_text(encoding="utf-8")))
     return manifest
 
 
@@ -144,6 +199,7 @@ def assemble(cache: Path, destination: Path, source: Path = SOURCE) -> dict:
     assets = json.loads((source / "assets.json").read_text(encoding="utf-8"))
     if assets.get("schema") != 1:
         raise ValueError("Unsupported asset schema")
+    require_x64_assets(assets)
     required = [assets["python"], *assets["wheels"], *assets["notices"]]
     cache.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(max_workers=6) as pool:
@@ -172,7 +228,8 @@ def assemble(cache: Path, destination: Path, source: Path = SOURCE) -> dict:
     app_license = source.parents[1] / "LICENSE"
     if app_license.is_file():
         shutil.copyfile(app_license, notices / "APPLICATION-LICENSE")
-    manifest = {"schema": 1, "files": inventory(destination), "omitted": omitted,
+    write_notice_index(destination, assets, cache)
+    manifest = {"schema": 1, "target": TARGET, "files": inventory(destination), "omitted": omitted,
                 "runtime_version": "0.2.15", "python_version": assets["python"]["version"],
                 "contains_model_weights": False}
     (destination / "bundle.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

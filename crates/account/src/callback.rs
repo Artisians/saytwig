@@ -35,6 +35,15 @@ impl PendingSignIn {
         self.url.as_str()
     }
 
+    pub(crate) fn request_plan_consent(&mut self) -> Result<(), AccountError> {
+        let mut url = Url::parse(self.url.as_str()).map_err(|_| AccountError::Provider)?;
+        // This method is only reached from the explicit enable-plan host API.
+        // Ordinary returning sign-in must not repeatedly force consent.
+        url.query_pairs_mut().append_pair("prompt", "consent");
+        self.url = Secret::new(url.into());
+        Ok(())
+    }
+
     pub(crate) async fn new(
         host: &str,
         registration: Option<(ProfileId, String, Option<String>, Option<Secret>)>,

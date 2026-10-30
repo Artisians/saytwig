@@ -1,5 +1,6 @@
 {
   "schema": 1,
+  "target": "windows-x86_64",
   "python": {
     "version": "3.13.16",
     "filename": "python-3.13.16-embed-amd64.zip",

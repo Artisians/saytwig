@@ -1,6 +1,8 @@
 //! Newly authored, shell-independent integration with the official Fermion runtime.
 //! Call blocking operations off the UI thread. No model download occurs on spawn,
 //! warm-up, or recognition: explicit installation is a separate operation.
+#[cfg(all(windows, not(target_arch = "x86_64")))]
+compile_error!("Saytwig supports Windows x64 only; Windows ARM and x86 builds are not supported.");
 mod install;
 mod integrity;
 mod service;

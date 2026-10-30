@@ -23,9 +23,10 @@ activates/focuses another window or logs clipboard/transcript contents.
   UI thread when a completed-operation fence is required. Generation counters
   are process-local, not history identifiers. Manual app-button starts should
   not capture or auto-paste; Windows also refuses this app's own process.
-- Only deliver caller-approved final text with the matching generation. Copy is
-  the default integration path. Cancellation must call both domain cancellation
-  and `DeliveryGate::cancel`. A cancelled/superseded/consumed request is rejected.
+- Only deliver caller-approved final text with the matching generation. Manual
+  starts use explicit Copy; global-shortcut starts may use guarded Windows paste.
+  Cancellation must call both domain cancellation and the per-request gate's
+  nonblocking `revoke`. A cancelled/superseded/consumed request is rejected.
 - Optional Windows paste checks original foreground window + process twice and
   refuses held keyboard modifiers. It checks that the clipboard still has the written revision under the native
   clipboard lock, then submits one Ctrl+V batch without changing focus and
@@ -49,7 +50,11 @@ activates/focuses another window or logs clipboard/transcript contents.
 
 ## Honest platform scope
 
-| Capability | Windows | macOS | X11 | Wayland/headless |
+Windows builds support **x64 only**. Non-x86_64 Windows targets fail compilation
+with an explicit diagnostic; no Windows ARM or 32-bit support is offered. This
+restriction does not remove macOS or Linux ARM platform paths.
+
+| Capability | Windows x64 | macOS | X11 | Wayland/headless |
 | --- | --- | --- | --- | --- |
 | Global shortcut | native, host message loop | native, main loop | native | unsupported |
 | Explicit clipboard copy | native | arboard | arboard, owner kept alive | unsupported here |

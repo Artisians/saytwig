@@ -341,10 +341,12 @@ def generate(args):
     collect_assets(packages, output, blockers)
     shutil.copyfile(ROOT / "LICENSE", output / "SAYTWIG-LICENSE.txt")
     shutil.copyfile(ROOT / "Cargo.lock", output / "Cargo.lock")
+    harvest_path = output / "HARVEST.json"
     about = subprocess.run([
         "cargo-about", "generate", "--manifest-path", "Cargo.toml", "--workspace",
         "--config", str(config_path), "--locked", "--fail", "--offline",
         "--target", args.target, *feature_args(features), "--format", "json",
+        "--output-file", str(harvest_path),
     ], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
         env={**os.environ, "RAYON_NUM_THREADS": "2"}, timeout=600)
     # Retain diagnostics for reviewers, not for license text substitution.
@@ -356,7 +358,7 @@ def generate(args):
         blockers.append("cargo-about could not satisfy every expression; see HARVEST-DIAGNOSTICS.txt")
         print(about.stderr[:16384], file=sys.stderr)
     else:
-        result = json.loads(about.stdout)
+        result = json.loads(harvest_path.read_text(encoding="utf-8"))
         selected_packages = {package_key(p): p for p in packages}
         for license in result["licenses"]:
             users = sorted({package_key(u["crate"]) for u in license["used_by"]

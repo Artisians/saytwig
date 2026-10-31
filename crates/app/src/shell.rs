@@ -1040,16 +1040,12 @@ impl Shell {
                     .child(div().text_sm().text_color(rgb(0xb3b3b3)).child(
                         if self.model.active() {
                             self.phase_label().to_owned()
-                        } else if self.hotkey.as_ref().is_some_and(HotkeyLease::is_bound) {
-                            self.model
-                                .settings
-                                .extra
-                                .get("shortcut")
-                                .and_then(serde_json::Value::as_str)
-                                .unwrap_or("Control+Space")
-                                .into()
                         } else {
-                            t("shortcut_inactive").into()
+                            self.hotkey
+                                .as_ref()
+                                .and_then(HotkeyLease::shortcut)
+                                .unwrap_or_else(|| t("shortcut_inactive"))
+                                .into()
                         },
                     )),
             )

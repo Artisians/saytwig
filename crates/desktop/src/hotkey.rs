@@ -6,6 +6,7 @@ pub enum ShortcutSignal {
     Released,
 }
 pub trait HotkeyBackend {
+    /// Returns the existing ID when this backend already owns the shortcut.
     fn register(&mut self, shortcut: &str) -> Result<u32, DesktopError>;
     fn unregister(&mut self, id: u32) -> Result<(), DesktopError>;
     fn next_event(&mut self) -> Option<(u32, ShortcutSignal)>;
@@ -34,6 +35,12 @@ impl<B: HotkeyBackend> HotkeyLease<B> {
             return Ok(());
         }
         let new = self.backend.register(shortcut)?;
+        if let Some((id, existing)) = &mut self.binding {
+            if *id == new {
+                shortcut.clone_into(existing);
+                return Ok(());
+            }
+        }
         if let Some((old, _)) = &self.binding {
             if let Err(error) = self.backend.unregister(*old) {
                 let _ = self.backend.unregister(new);
@@ -54,6 +61,9 @@ impl<B: HotkeyBackend> HotkeyLease<B> {
     }
     pub fn is_bound(&self) -> bool {
         self.binding.is_some()
+    }
+    pub fn shortcut(&self) -> Option<&str> {
+        self.binding.as_ref().map(|(_, shortcut)| shortcut.as_str())
     }
     pub fn poll(&mut self) -> Option<ShortcutSignal> {
         for _ in 0..32 {

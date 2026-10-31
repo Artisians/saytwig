@@ -9,10 +9,41 @@ From the repository root, start a loopback-only preview:
 python3 -m http.server 4612 --bind 127.0.0.1 --directory web/public
 ```
 
-The production destination is the existing Cloudflare Pages project `saytwig`,
-with the custom domain `saytwig.goarts.win`. Deployment uploads only `web/public/`
-after the required source and visual reviews. Use the existing authorized
-Cloudflare session; no GitHub Pages workflow or new credential is required.
+## Deploy from main
+
+The `Deploy website` GitHub Actions workflow uploads only `web/public/` to the
+existing Cloudflare Pages project `saytwig`. Pushes to `main` that change served
+files or the deployment workflow trigger deployment. Pull requests, tags, and
+other branches do not deploy. The workflow can also run manually on `main` to
+retry a deployment. Deployments do not interrupt an active upload.
+
+The site needs no package installation or build step. The workflow installs
+only the pinned Wrangler deployment tool. Each job checks out current `main`
+after it leaves the deployment queue, including reruns of older workflow runs.
+It records that checked-out commit SHA in Pages and preserves `saytwig.pages.dev`
+and `saytwig.goarts.win`. The deployed SHA can differ from the triggering run's
+SHA if `main` advanced while the job waited.
+
+Before the first deployment:
+
+1. In the repository's **Settings > Secrets and variables > Actions**, add
+   `CLOUDFLARE_API_TOKEN` as a repository secret. Use an owner-approved API token
+   with **Account > Cloudflare Pages > Edit** for account
+   `cfc4f7e12752e71d7c6677585e057436`. Do not put the token in source or chat.
+2. Set the existing project's `production_branch` to `main` through Cloudflare's
+   [Update Project API](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/edit/).
+   Direct Upload projects require this API change. Keep the domains, deployment
+   configuration, and project unchanged.
+3. Merge a website change to `main`, or run **Deploy website** on `main`.
+   A missing token or a production branch other than `main` fails before upload.
+4. Confirm that the Pages production deployment records the checked-out commit
+   SHA and that both domains serve the files from that commit's `web/public/`.
+
+An existing Cloudflare OAuth session is not a GitHub Actions credential.
+Direct Upload projects cannot switch to Git integration. This workflow follows
+Cloudflare's [Direct Upload CI guide](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/)
+without replacing the project. To roll back the site, revert the served-file
+change on `main`. To stop automatic uploads, disable **Deploy website** in Actions.
 
 There is no package installation, build step, analytics, external
 font request, microphone request, or API call. The voice-to-text story is synthetic: one finite entrance plus scroll-linked

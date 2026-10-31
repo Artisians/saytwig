@@ -1,0 +1,60 @@
+name: Deploy website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - web/public/**
+      - .github/workflows/website.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'Artisians/saytwig' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_ACCOUNT_ID: cfc4f7e12752e71d7c6677585e057436
+    steps:
+      - name: Require the exact production ref
+        run: |
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo '::error::Website deployments require refs/heads/main.'
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: main
+      - name: Record the checked-out main commit
+        run: echo "DEPLOY_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Require deployment credential and production branch
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo '::error::Add the CLOUDFLARE_API_TOKEN Actions secret with Cloudflare Pages Edit permission for the existing Saytwig account.'
+            exit 1
+          fi
+          curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/saytwig" \
+            | jq --exit-status '.success == true and .result.production_branch == "main"' > /dev/null || {
+              echo '::error::Cannot confirm the existing saytwig Pages project uses main as its production branch. Check token access and project configuration.'
+              exit 1
+            }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Deploy public website
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: npx --yes wrangler@4.156.0 pages deploy web/public --project-name=saytwig --branch=main --commit-hash="$DEPLOY_COMMIT"

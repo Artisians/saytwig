@@ -1,0 +1,53 @@
+//! Reviewed inventory pins and expansion bounds from the locked upstream archives.
+use crate::runtime_install::RuntimeSpec;
+
+pub(super) const TARGETS: &[RuntimeSpec] = &[
+    RuntimeSpec {
+        target: "aarch64-apple-darwin",
+        digest: "bc9d10b679a85e820ba83f5d606653d234e7744c0f3b9658385b380e92217fc6",
+        directory: "aarch64-apple-darwin-bc9d10b679a85e82",
+        assets: include_bytes!("../../../scripts/phonon/assets-aarch64-apple-darwin.json"),
+        bootstrap_bytes: 103667744,
+        bootstrap_entries: 1665,
+        unpacked_bytes: 750291725,
+        archive_entries: 23044,
+        installed_bytes: Some(738703997),
+        download_bytes: 230405589,
+    },
+    RuntimeSpec {
+        target: "aarch64-unknown-linux-gnu",
+        digest: "de9595e430e95c9cc11491170addba32cb4b79a10ed07e0e6aff86a475eb0ccc",
+        directory: "aarch64-unknown-linux-gnu-de9595e430e95c9c",
+        assets: include_bytes!("../../../scripts/phonon/assets-aarch64-unknown-linux-gnu.json"),
+        bootstrap_bytes: 350978230,
+        bootstrap_entries: 4536,
+        unpacked_bytes: 1200277695,
+        archive_entries: 25603,
+        installed_bytes: Some(1189113282),
+        download_bytes: 335105092,
+    },
+    RuntimeSpec {
+        target: "x86_64-apple-darwin",
+        digest: "ddbd24249bd0310ff136de21092eb713adbb1371a16fa9b7f0567e9388f778a7",
+        directory: "x86_64-apple-darwin-ddbd24249bd0310f",
+        assets: include_bytes!("../../../scripts/phonon/assets-x86_64-apple-darwin.json"),
+        bootstrap_bytes: 105055230,
+        bootstrap_entries: 1662,
+        unpacked_bytes: 1049506544,
+        archive_entries: 20821,
+        installed_bytes: Some(1037499385),
+        download_bytes: 320141636,
+    },
+    RuntimeSpec {
+        target: "x86_64-unknown-linux-gnu",
+        digest: "bcb4a6f6dcaea1ca677d8b05934a244ecfc1d42e1aa931d2a24b4bd444cc3a09",
+        directory: "x86_64-unknown-linux-gnu-bcb4a6f6dcaea1ca",
+        assets: include_bytes!("../../../scripts/phonon/assets-x86_64-unknown-linux-gnu.json"),
+        bootstrap_bytes: 479150577,
+        bootstrap_entries: 4536,
+        unpacked_bytes: 1590378228,
+        archive_entries: 25723,
+        installed_bytes: Some(1579237609),
+        download_bytes: 442222666,
+    },
+];

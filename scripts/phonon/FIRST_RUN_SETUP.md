@@ -16,7 +16,9 @@ uses the existing explicit model installer. Startup discovery does not download.
 The application does not run pip, use system Python, install system packages,
 request administrator access or copy arbitrary DLLs. Microsoft Visual C++ x64
 prerequisites must already be present; failure must be explained rather than
-silently installing them. Managed setup is not implemented for Linux/macOS.
+silently installing them. The same installer now has separately pinned
+[macOS and Linux provisioning contracts](UNIX_SETUP.md). Those contracts do not
+establish native setup-screen, permission, or dictation acceptance.
 
 Pinned runtime inputs total **314,446,024 bytes**; the model is a separate
 **157,616,598-byte** archive. First setup therefore downloads **472,062,622 bytes**

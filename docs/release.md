@@ -82,12 +82,17 @@ Python/PyTorch, model weights, or redistributed system libraries. See
 [the distribution notices contract](../scripts/release/README.md) and
 [speech licensing](../scripts/phonon/NOTICES.md).
 
-**The speech runtime and model are not bundled.** Managed first-run speech setup
-currently works only on native Windows x64. macOS and Linux need separately
-provisioned, verified speech assets and have no automatic paste implementation.
+**The speech runtime and model are not bundled.** The backend supports
+target-pinned provisioning on native Windows x64, macOS Apple Silicon and Intel,
+and Linux ARM64 and x64. macOS and Linux have no automatic paste implementation.
 Available packages are not a claim of feature parity or ordinary-user readiness.
 The Windows VC++ prerequisite, interrupted setup recovery, runtime redistribution
 obligations, and native microphone-to-transcript QA remain release work.
+
+See the [Unix setup contract](../scripts/phonon/UNIX_SETUP.md) for the existing installer.
+This backend work does not establish setup-screen integration or native-device
+acceptance. The platform's `setup_capability()` metadata must drive explicit
+consent before its installer is offered to users.
 
 ## Checks and acceptance
 

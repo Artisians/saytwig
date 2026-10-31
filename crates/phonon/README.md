@@ -10,11 +10,15 @@ startup, warm-up, or transcription.
 
 ## Host contract
 
-1. On native Windows x64, `managed_runtime(store_root)` discovers the reviewed
-   managed bundle without network access. Only an explicit setup action calls
+1. On supported native Windows, macOS, and Linux targets,
+   `managed_runtime(store_root)` discovers the reviewed target-specific bundle
+   without network access. `setup_capability()` supplies immutable consent metadata
+   without file access or device queries. Only an explicit setup action calls
    `install_runtime_requested(store_root, &cancellation, progress)`; its expected
    inventory digest and canonical helper/asset fingerprint are compiled into
    the app. See [first-run setup and limitations](../../scripts/phonon/FIRST_RUN_SETUP.md).
+   The [macOS and Linux contract](../../scripts/phonon/UNIX_SETUP.md) describes
+   their separate asset pins, Python archive receipts, and acceptance limits.
    Development hosts can instead supply a directory and **independently trusted**
    `bundle.json` SHA-256 to `RuntimeBundle::open`. Never derive trust from an
    adjacent mutable digest file. These hashes are integrity pins, not signatures.

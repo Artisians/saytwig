@@ -21,13 +21,14 @@ pub const MODEL_URL: &str = "https://huggingface.co/FermionResearch/Phonon-2.5-E
 pub struct RuntimeBundle {
     root: PathBuf,
     manifest_sha256: String,
+    interpreter: PathBuf,
 }
 
 #[derive(Deserialize)]
 struct Inventory {
     schema: u32,
-    #[cfg(windows)]
     target: Option<String>,
+    interpreter: Option<String>,
     files: Vec<Entry>,
 }
 #[derive(Deserialize)]
@@ -149,20 +150,21 @@ impl RuntimeBundle {
             metadata.is_dir() && !is_reparse(&metadata),
             "Runtime root must be a regular directory"
         );
-        let bundle = Self {
+        let mut bundle = Self {
             root: root
                 .canonicalize()
                 .context("Cannot resolve runtime directory")?,
             manifest_sha256: manifest_sha256.to_ascii_lowercase(),
+            interpreter: PathBuf::from("python/python.exe"),
         };
-        bundle.verify_checked(check)?;
+        bundle.interpreter = bundle.verified_interpreter_checked(check)?;
         Ok(bundle)
     }
     pub fn root(&self) -> &Path {
         &self.root
     }
     pub(crate) fn interpreter(&self) -> PathBuf {
-        self.root.join("python/python.exe")
+        self.root.join(&self.interpreter)
     }
     pub(crate) fn bridge(&self) -> PathBuf {
         self.root.join("bridge.py")
@@ -171,6 +173,13 @@ impl RuntimeBundle {
         self.verify_checked(&|| Ok(()))
     }
     pub(crate) fn verify_checked(&self, check: &impl Fn() -> Result<()>) -> Result<()> {
+        ensure!(
+            self.verified_interpreter_checked(check)? == self.interpreter,
+            "Runtime interpreter changed"
+        );
+        Ok(())
+    }
+    fn verified_interpreter_checked(&self, check: &impl Fn() -> Result<()>) -> Result<PathBuf> {
         check()?;
         require_supported_host()?;
         let manifest = self.root.join("bundle.json");
@@ -210,6 +219,19 @@ impl RuntimeBundle {
             inventory.target.as_deref() == Some("windows-x86_64"),
             "Runtime bundle is not declared for Windows x64"
         );
+        #[cfg(not(windows))]
+        if let Some(target) = inventory.target.as_deref() {
+            ensure!(
+                Some(target) == host_target(),
+                "Runtime bundle does not match this application target"
+            );
+        }
+        let interpreter = relative_path(
+            inventory
+                .interpreter
+                .as_deref()
+                .unwrap_or("python/python.exe"),
+        )?;
         ensure!(
             inventory.schema == 1,
             "Unsupported bundle inventory version"
@@ -258,14 +280,54 @@ impl RuntimeBundle {
             "Speech bundle has missing or unexpected files"
         );
         ensure!(
-            self.interpreter().is_file() && self.bridge().is_file(),
+            expected.contains(&interpreter)
+                && self.root.join(&interpreter).is_file()
+                && expected.contains(Path::new("bridge.py")),
             "Speech bundle is incomplete"
         );
-        Ok(())
+        Ok(interpreter)
+    }
+}
+
+pub(crate) fn host_target() -> Option<&'static str> {
+    match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("windows", "x86_64") => Some("windows-x86_64"),
+        ("macos", "aarch64") => Some("aarch64-apple-darwin"),
+        ("macos", "x86_64") => Some("x86_64-apple-darwin"),
+        ("linux", "aarch64") => Some("aarch64-unknown-linux-gnu"),
+        ("linux", "x86_64") => Some("x86_64-unknown-linux-gnu"),
+        _ => None,
     }
 }
 
 pub(crate) fn require_supported_host() -> Result<()> {
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    {
+        let mut translated: libc::c_int = 0;
+        let mut size = std::mem::size_of_val(&translated);
+        // SAFETY: the name is NUL-terminated and both output pointers reference
+        // live values with the documented sysctl integer layout.
+        let queried = unsafe {
+            libc::sysctlbyname(
+                c"sysctl.proc_translated".as_ptr(),
+                std::ptr::from_mut(&mut translated).cast(),
+                &mut size,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+        if queried != 0 {
+            ensure!(
+                std::io::Error::last_os_error().raw_os_error() == Some(libc::ENOENT),
+                "Cannot determine the native macOS architecture"
+            );
+        } else {
+            ensure!(
+                size == std::mem::size_of_val(&translated) && translated == 0,
+                "Use the native Apple Silicon application instead of an Intel build under Rosetta"
+            );
+        }
+    }
     #[cfg(windows)]
     {
         use windows_sys::Win32::System::{

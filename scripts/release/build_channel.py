@@ -51,7 +51,7 @@ def channel(ref, commit, version):
         raise ValueError("Stable tag does not identify the checked-out commit")
     # Membership is necessary, not a substitute for CONTRIBUTING's human review.
     run("git", "merge-base", "--is-ancestor", commit, "refs/remotes/origin/main")
-    return "stable", "v" + version
+    return "stable-candidate", "candidate-v" + version + "-" + commit[:12]
 
 
 def verify_binary(path, target):
@@ -102,9 +102,7 @@ def build(target, ref, commit):
     licenses = output / "licenses"
     lock_hash = sha256(ROOT / "Cargo.lock")
     os.environ["RUSTUP_TOOLCHAIN"] = "1.99.1"
-    os.environ["SAYTWIG_BUILD_CHANNEL"] = "stable" if name == "stable" else (
-        "nightly" if name == "nightly" else "development"
-    )
+    os.environ["SAYTWIG_BUILD_CHANNEL"] = "nightly" if name == "nightly" else "development"
     os.environ["SAYTWIG_BUILD_COMMIT"] = commit
     tool_bin = ROOT / ".tools" / "cargo-about" / "bin"
     os.environ["PATH"] = str(tool_bin) + os.pathsep + os.environ["PATH"]

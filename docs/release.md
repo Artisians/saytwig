@@ -39,6 +39,13 @@ identity, not `stable`. This keeps an unsigned candidate from claiming stable
 status or treating its source version as an installed stable release during an
 update check. Neither a tag nor a successful packaging job grants stable status.
 
+Create future candidate tags only from `main` commits containing the
+[candidate-identity correction](https://github.com/Artisians/saytwig/pull/3).
+Tags on older commits run their older workflow and packaging script and can
+still produce unsigned artifacts with stable identity. This correction does
+not change historical commits or enforce repository-level tag restrictions.
+Do not promote those older artifacts as stable.
+
 ## Packages and limits
 
 The following recipes are implemented, not a list of published downloads.

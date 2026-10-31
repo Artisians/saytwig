@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: 2
+  RUST_BACKTRACE: 1
+  RUSTUP_TOOLCHAIN: 1.99.1
+  CARGO_INCREMENTAL: 0
+  MACOSX_DEPLOYMENT_TARGET: '13.0'
+  SAYTWIG_BUILD_CHANNEL: ${{ github.ref == 'refs/heads/main' && 'nightly' || 'development' }}
+  SAYTWIG_BUILD_COMMIT: ${{ github.sha }}
+
+jobs:
+  source:
+    permissions:
+      contents: read
+    name: Rust formatting
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13.16"
+      - name: Install pinned Rust tools
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
+      - name: Format
+        run: python3 scripts/checks/run.py format
+
+  native:
+    permissions:
+      contents: read
+    name: Native Rust (${{ matrix.target }})
+    env:
+      CARGO_TARGET_DIR: target/ci
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13.16"
+      - name: Linux GPUI, audio, and clipboard build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config clang cmake libasound2-dev libfontconfig-dev libfreetype-dev libssl-dev libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libxcb1-dev libvulkan-dev libzstd-dev libglib2.0-dev
+      - name: Install pinned Rust tools
+        run: rustup toolchain install 1.99.1 --profile minimal --component clippy --target ${{ matrix.target }}
+      - name: Restore Rust dependencies and build outputs
+        id: rust-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/ci/
+          key: rust-${{ matrix.os }}-${{ runner.arch }}-1.99.1-${{ matrix.target }}-dev-${{ hashFiles('Cargo.lock', '**/Cargo.toml', 'rust-toolchain.toml', '.github/workflows/ci.yml', 'scripts/checks/run.py') }}-${{ github.sha }}
+          restore-keys: |
+            rust-${{ matrix.os }}-${{ runner.arch }}-1.99.1-${{ matrix.target }}-dev-${{ hashFiles('Cargo.lock', '**/Cargo.toml', 'rust-toolchain.toml', '.github/workflows/ci.yml', 'scripts/checks/run.py') }}-
+      - name: Workspace Clippy and native app link
+        run: python scripts/checks/run.py rust --target ${{ matrix.target }}
+      - name: Save successful trusted-branch Rust cache
+        if: github.event_name == 'push' && steps.rust-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/ci/
+          key: ${{ steps.rust-cache.outputs.cache-primary-key }}

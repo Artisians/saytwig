@@ -1,45 +1,63 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Artisians/saytwig/nightly/assets/saytwig.svg" width="88" height="88" alt="Saytwig mark">
+  <img src="assets/saytwig.svg" width="88" height="88" alt="Saytwig mark">
 </p>
 
 <h1 align="center">Saytwig</h1>
 
-<p align="center">A local speech recognition app for desktop, built in Rust with GPUI.</p>
+<p align="center">Turn speech into text on your device.</p>
 
 <p align="center">
-  <a href="https://github.com/Artisians/saytwig/tree/nightly">Explore nightly source</a> ·
-  <a href="https://github.com/Artisians/saytwig/blob/nightly/README.md#development">Build from source</a> ·
-  <a href="https://github.com/Artisians/saytwig/blob/nightly/docs/account.md">Accounts &amp; privacy</a>
+  <a href="https://github.com/Artisians/saytwig/releases">Experimental downloads</a> ·
+  <a href="#build-from-source">Build from source</a> ·
+  <a href="web/">Landing page source</a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/Artisians/saytwig/actions/workflows/ci.yml?query=branch%3Anightly"><img src="https://github.com/Artisians/saytwig/actions/workflows/ci.yml/badge.svg?branch=nightly" alt="Nightly build and lint status"></a>
-</p>
+Saytwig is an experimental desktop dictation app built in Rust with GPUI.
+English speech recognition runs locally, without a transcription account.
 
-## Local speech. Optional cleanup.
+Optional ChatGPT cleanup requires a connected account and your permission to share
+transcript text. Audio stays local. Failed or cancelled cleanup keeps the original text.
 
-English speech recognition runs on your device, without a transcription account.
-Optional ChatGPT cleanup requires a connected account and explicit transcript-sharing
-consent. Audio stays local; the original text remains available.
+## Experimental downloads
 
-## Development channels
+Get available builds from [GitHub Releases](https://github.com/Artisians/saytwig/releases).
+There is no stable release yet. The speech runtime and model are separate downloads,
+not part of the application package.
 
-| Channel | Status |
-| :--- | :--- |
-| [Nightly](https://github.com/Artisians/saytwig/tree/nightly) | Application source and native Linux x64 / Windows MSVC x64 build checks. |
-| [Stable](https://github.com/Artisians/saytwig/tree/stable) | Promotion target; no application release has been promoted. |
+| Platform | Package recipe | Current limits |
+| :--- | :--- | :--- |
+| Windows x64 | Per-user setup executable | Unsigned. Managed speech setup and shortcut-started paste. No Windows ARM or 32-bit support. |
+| macOS Apple Silicon and Intel | DMG with `Saytwig.app` | Ad-hoc signed, not notarized. Speech assets require manual provisioning. No automatic paste. |
+| Linux x64 | Archive for Ubuntu 24.04-compatible systems | Requires system graphics and audio libraries. Speech assets require manual provisioning. No automatic paste. |
 
-**Experimental Windows x64 build:** [download the app-only prerelease](https://github.com/Artisians/saytwig/releases/tag/saytwig-experimental-20261030-b8c08a0).
-It is unsigned, not an installer, and does not include the speech runtime or model.
-Native Windows operation and first-run setup remain unverified. See
-[release status](https://github.com/Artisians/saytwig/blob/nightly/docs/release.md).
+These are package recipes, not a promise that every platform has a published build.
+Check the [package status](scripts/release/STATUS.md) and the files attached to each release.
+Native installation, microphone permissions, and end-to-end dictation still need
+hands-on verification before Saytwig is ready for everyday use.
 
-[Build evidence](https://github.com/Artisians/saytwig/blob/nightly/docs/BUILD_STATUS.md) ·
-[Contributing](https://github.com/Artisians/saytwig/blob/nightly/CONTRIBUTING.md) ·
-[License](https://github.com/Artisians/saytwig/blob/nightly/LICENSE) ·
-[Third-party notices](https://github.com/Artisians/saytwig/blob/nightly/THIRD_PARTY_NOTICES.md)
+See [release requirements](docs/release.md) for platform warnings and release policy.
+
+## Build from source
+
+Use the pinned Rust toolchain and the native graphics/audio dependencies listed
+in the [CI workflow](.github/workflows/ci.yml). Speech setup is separate from the build.
+
+```sh
+git clone https://github.com/Artisians/saytwig.git
+cd saytwig
+cargo build --release --locked --bin saytwig
+```
+
+Building the app does not install speech assets. Read the
+[speech runtime guide](crates/phonon/README.md) before attempting dictation.
+For development checks and project structure, see [Contributing](CONTRIBUTING.md)
+and [architecture](docs/architecture.md).
 
 ## Credits
 
-Saytwig uses GPUI, GPUI Kit, and Fermion Research's Phonon 2.5 English engine.
-Application code is MIT-licensed. Dependencies and model weights retain their own licenses.
+Saytwig uses GPUI, GPUI Kit, and Fermion Research's Phonon 2.5 English engine,
+derived from NVIDIA Parakeet. New application code is [MIT-licensed](LICENSE).
+Dependencies and model weights retain their own licenses, including Apache-2.0
+for Fermion's runtime and CC-BY-4.0 for Phonon weights. See
+[third-party notices](THIRD_PARTY_NOTICES.md) and the
+[speech license inventory](scripts/phonon/NOTICES.md).

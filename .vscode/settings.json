@@ -1,0 +1,8 @@
+{
+  "editor.formatOnSave": true,
+  "[rust]": { "editor.defaultFormatter": "rust-lang.rust-analyzer" },
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.check.allTargets": false,
+  "rust-analyzer.check.extraArgs": ["--lib", "--bins", "--", "-D", "warnings"],
+  "rust-analyzer.check.extraEnv": { "CARGO_BUILD_WARNINGS": "deny" }
+}

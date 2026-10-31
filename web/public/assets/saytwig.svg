@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Saytwig">
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="#101010"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7">
+    <path d="M46 88V64c0-15 12-27 27-27h10" stroke="#F2F2F2"/>
+    <path d="M47 74h14c13 0 23-10 23-23V37" stroke="#A5D6C3"/>
+    <path d="M46 88V98" stroke="#F2F2F2"/>
+  </g>
+</svg>

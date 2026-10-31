@@ -1,0 +1,10 @@
+/target/
+/runtime/
+/models/
+/.local/
+*.log
+*.key
+.env
+.env.*
+__pycache__/
+*.py[cod]

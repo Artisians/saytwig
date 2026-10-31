@@ -1,0 +1,924 @@
+{
+  "packages": [
+    {
+      "package": "mac",
+      "version": "0.1.1",
+      "declared_license": "MIT/Apache-2.0",
+      "selected_license": "Apache-2.0",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "6d465c5e5a4b3e197049e9fb7393b2f996c1c654e6ded700afce046fac2f7969"
+        },
+        {
+          "path": "README.md",
+          "sha256": "8edb7a912d295acf1e1cfeafdd19a6813a63b301c7bbfda3c67f65509bd8d8cc"
+        }
+      ],
+      "headers": [],
+      "rationale": "Explicit published Apache-2.0 alternative. Retain original declarations/attribution verbatim; supply unchanged official normative license text with template unfilled. Narrow reviewed exception, not proof of legal clearance."
+    },
+    {
+      "package": "pathfinder_geometry",
+      "version": "0.5.1",
+      "declared_license": "MIT/Apache-2.0",
+      "selected_license": "Apache-2.0",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "141871f41ab4ac7af854e54f1f637fb168ffbc97fdb57c60608f11b8eb95f1d7"
+        }
+      ],
+      "headers": [
+        {
+          "source_path": "src/angle.rs",
+          "source_sha256": "dce9c08facbaceccb920035477ac53ffc2798247b42b2ddef9338f2e35ab9c80",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/angle.rs.NOTICE",
+          "sha256": "b95e9cd7044b43469edadeccf46c4f0b30a92746deedcc0eae54e267d3f1f142"
+        },
+        {
+          "source_path": "src/lib.rs",
+          "source_sha256": "cedfb2d85e682e9b9e327a169347bf0cebecd52668e1ed91a3af05ec91b42090",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/lib.rs.NOTICE",
+          "sha256": "a830c3e1ca7ae32b804500428e0dd1fbaf34e997174af1ff2296227bd537c0d3"
+        },
+        {
+          "source_path": "src/line_segment.rs",
+          "source_sha256": "4af21598890aef0ffec10abd5460c0416cb1bb56b003fb499f0cd75fc68177da",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/line_segment.rs.NOTICE",
+          "sha256": "60511d4ce2b174c61ffe79edec0fe18ead020b586c0104a5d2caafa62e805d75"
+        },
+        {
+          "source_path": "src/rect.rs",
+          "source_sha256": "68d48ddd9934ac11f0ed0e81c2cc6ede9271528dc318c3dd49cc9c9f51cb15ca",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/rect.rs.NOTICE",
+          "sha256": "a1149034fccc7d5141af10c261360e12fda0f8c32043e4825105bfc3cdf5a5b3"
+        },
+        {
+          "source_path": "src/transform2d.rs",
+          "source_sha256": "36514cf158f7bd2118a1e2f2586e439f6484d61f0505919e8005fb733e3c917c",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/transform2d.rs.NOTICE",
+          "sha256": "3df91c57a2efe17ebbbfdb98d84c43e253b4f7a8f6dc96279069a78a9a189391"
+        },
+        {
+          "source_path": "src/transform3d.rs",
+          "source_sha256": "d42aa24d02570376c429256f24891f489bd71ef257d9691f80b4fb6528e09275",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/transform3d.rs.NOTICE",
+          "sha256": "7926ee19e910aa36f41b10b6e8fac49bcc2ef8ca2230756e5df1728ef445f213"
+        },
+        {
+          "source_path": "src/unit_vector.rs",
+          "source_sha256": "a6c30c98aaf859492746696b9d67999322b18117fbe891b53f38ccfca5b28a5f",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/unit_vector.rs.NOTICE",
+          "sha256": "5cbe3b292e035ddd2e0cbd43d4965be51091160b691c1e4277190e8f3fbcac57"
+        },
+        {
+          "source_path": "src/util.rs",
+          "source_sha256": "33a05481be71f5cf41128eeeb3e378248249d0f6f30ebc057e4c05f11344a0e5",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/util.rs.NOTICE",
+          "sha256": "5570b4fa3949d5d0dc71e6e169d5d32fe372082a71eadac3019d1d5a41905cf5"
+        },
+        {
+          "source_path": "src/vector.rs",
+          "source_sha256": "cfcaad0394c5489a412bcdbbbe6928e1875d4a422eb5a7da1a3e415fdbc0790c",
+          "local_path": "evidence/declarations/pathfinder_geometry-0.5.1/vector.rs.NOTICE",
+          "sha256": "1cc6584237b6a4d3c6d14adaa13fc384220c770df391e315e096cdb63431217f"
+        }
+      ],
+      "rationale": "Explicit published Apache-2.0 alternative. Retain original declarations/attribution verbatim; supply unchanged official normative license text with template unfilled. Narrow reviewed exception, not proof of legal clearance."
+    },
+    {
+      "package": "seahash",
+      "version": "4.1.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "1d610f6d1bce065add6ec5f2fb764e97eeda505afbe26271acc5f3d73a8c410a"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "dd213de338ca98b7ef7a2562bcf4e4214d215d1a8277750a6a72b4e809c8d0dd"
+        },
+        {
+          "path": "README.md",
+          "sha256": "38357210ef69a97bf9858ff22661cb1c2384179f5e6b73143cb33193e36c6473"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "891efcfccd34579199c16b76ea79adcb7356226765300af5c18a574e6ecdaf61"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "rationale": "Published crate explicitly declares MIT but includes no copyright/license text. Retain all verbatim metadata and complete checksum-verified unmodified published source; provide authoritative SPDX MIT standard text explicitly identified as normative with placeholder unchanged. No holder/year inferred from authors. Absent upstream notices cannot be established; not legal clearance."
+    },
+    {
+      "package": "block",
+      "version": "0.1.6",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "24df2f33b48c9e756a4f864f882c1ab07a159b6c2b790f45af2e8162499b6719"
+        },
+        {
+          "path": "README.md",
+          "sha256": "01c56329fa14f48ea1c9c7986c3660c41beeff2477f61c2d36bd8e666b9fc562"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive. Retain original metadata and the full checksum-verified unmodified locked archive. Supply unchanged normative MIT standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices remain uncertain; this is not legal clearance."
+    },
+    {
+      "package": "block2",
+      "version": "0.6.2",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "e325c51f01145af3e11f2ee5ce7c47f10697d936c1d90b9ee81a0cf4f700f6d7"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "d18aec0c39956f1a29b6d157c13ec51ce53d7c2a2982c307528215f8870720ac"
+        },
+        {
+          "path": "README.md",
+          "sha256": "99073a83cfe6ee090546e3063f41251f7309fe2a017c4add8494e4ad7990d058"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "5b87885cad87999d141e83cc8af4b073192f584b2b92cea77e2d87636621a264"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "b4167b582b2f75f9a1be75495c41b765344fd03c",
+        "local_path": "evidence/declarations/objc2-upstream/b4167b582b2f75f9a1be75495c41b765344fd03c-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/b4167b582b2f75f9a1be75495c41b765344fd03c/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative MIT standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "dispatch2",
+      "version": "0.3.1",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "1e0e367e4e7da84520dedcac1901e4da967309406d1e51017ae1abfb97adbd38",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "f246cf8997c346fdcabb8925ad5be967f397fd8b92630ef7bcc9bdce5d33f775"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "f6aeef4bfe348b9e65e33db2bfb079be4149f9ab0f4b0b3bf3f5d04c144545af"
+        },
+        {
+          "path": "README.md",
+          "sha256": "eba8f5b9bc021bfaaf84478017baf838a92d56a47e691a8b8989aae1210c05d7"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "26f5e6d699ba3ce13b8eea253ad7a7f7feb9345e9da3c01bb9b9bd911a6a7dba"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "8852b424193ca41602281b3d7540d7c8ed51e49a",
+        "local_path": "evidence/declarations/objc2-upstream/8852b424193ca41602281b3d7540d7c8ed51e49a-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "malloc_buf",
+      "version": "0.0.6",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "d87624d9d117489bd49dbaeb70077a0721e00ac2a76eb371faec818a92da5661"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive. Retain original metadata and the full checksum-verified unmodified locked archive. Supply unchanged normative MIT standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices remain uncertain; this is not legal clearance."
+    },
+    {
+      "package": "objc2",
+      "version": "0.6.5",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "08849bbd4767dfae9457696856ae1c84fe4e0281bbe4a7abff2d0e06fb7981f8",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "5556dba493fc18e98ebf82f587011f76df6c8c26532613e4c8f904ee586d7cf0"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "4a1e1561612efc4a8aea4dd574c781f6215fa5416696425227558fc782353cba"
+        },
+        {
+          "path": "README.md",
+          "sha256": "5da56f1508a87b982a23e6bad2ff09b329f7fcf9181ea15eac17788f8d1c6824"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "5f7c8e095d3933c477ff1f71021b551cbfe497a62346a1dc8615debd9846e257"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "d7d2fa23ceaa5e6096c923b081040e5d81b3b9df",
+        "local_path": "evidence/declarations/objc2-upstream/d7d2fa23ceaa5e6096c923b081040e5d81b3b9df-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/d7d2fa23ceaa5e6096c923b081040e5d81b3b9df/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative MIT standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-app-kit",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "11a761a52774ed9738fb854ba3eecb48fa360b6ce43dddc00c338346853717b5"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "a15eb82815ce282d59a2f5be179556695ce678790129c30e1d86567c1e2c684e"
+        },
+        {
+          "path": "README.md",
+          "sha256": "da145d375986071fdf836604db8c6e99438bb484ad51b8775455635e36fc2ce3"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "07762c2a438c287ac124300928c9da0f96cefc1932ff8cadac13716fd1e195eb"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-audio-toolbox",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "6948501a91121d6399b79abaa33a8aa4ea7857fe019f341b8c23ad6e81b79b08",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "1490b8dce5ee70b1b4a953db4109fb5797cefbe9e3973ec9121ee11fc008a012"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "87aa116c2f121808b33f1240073232ce4a645247229a855b25168978b9b85faa"
+        },
+        {
+          "path": "README.md",
+          "sha256": "b0401a7932c1467f718e0ae3086e504cf657fae0d1827b5737257696ecb5a78c"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "82addff899c2a73551f4be851ad296e1b49b6ee7b58c3c253e1b931f60eba66e"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-cloud-kit",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "73ad74d880bb43877038da939b7427bba67e9dd42004a18b809ba7d87cee241c",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "64e059344995e74ca1d22cee17edd17dde101cc3e37eb4bd7c7967a54f54a6f5"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "f69323687923479e1e6c37b2020ffc2c5e2be5535c60007746d54e5962090d43"
+        },
+        {
+          "path": "README.md",
+          "sha256": "bf35fcf69351a2b3e027b326a898eda139a9d6801061b29713d138b0c34e452d"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "62f199c0f8876bdc6d78976603201d3684c925632b1fe158f2d6816b28baf121"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-audio",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "e1eebcea8b0dbff5f7c8504f3107c68fc061a3eb44932051c8cf8a68d969c3b2",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "62763a0b5d7e8d78402f464c83c2d31e69138b00ec1e19361f6359d500a4274c"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "be0e8c7f5c53a57f2fcfe86a833d48d10e523e54a3ae865e2d559d67209d06ae"
+        },
+        {
+          "path": "README.md",
+          "sha256": "6f527ab16e3d96f1508cfc3cad1f1c2e766498191d4fc7fb7f26cf81ecce9bef"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "e43bc44a09544783b5fd07ede5253ff11cb4df651d3cfb3236968a6684f98d06"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-audio-types",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "5a89f2ec274a0cf4a32642b2991e8b351a404d290da87bb6a9a9d8632490bd1c",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "f26066fe0a9932213e31793ec1b72578746e3ceb07dd667be2595daaf84760e1"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "475492b74df479e45b8c6a46f35b6cc12e05158334703cb135759ae44db94f48"
+        },
+        {
+          "path": "README.md",
+          "sha256": "61be6a3fb660067c7ef201fc48e138719fdaea5e4286de2d19568c06ab155e9b"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "a1214548682de7f2f59ca06fe8a25c610f3dc71255a18c25d2238c1af54d61bb"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-data",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "0b402a653efbb5e82ce4df10683b6b28027616a2715e90009947d50b8dd298fa",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "cac3cd4dd382310e930b39f922ea650c83688bbb65a680b5b8fa76d9e2db674c"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "64ddcb77e8e099866d45311e0d6b9a40e7e93bd07f741039e6edef3d1bd86b2f"
+        },
+        {
+          "path": "README.md",
+          "sha256": "b8530041248261c908b3261bfeeaa2df920455da5e4189803a425055fa35b5e8"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "7f8e9d957f5352b458a53d6e594c3f0f9033433224c6fb77823a6f0f421ef9e8"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-foundation",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "c0f54260fa1396923f2db4edf1e2d54e8ab09dea214af4b8ce37aaefa7185e60"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "44cd6a4440c3ea1ba85df240ab9b9e7a95da3a5873ce623ac426ac5acfbe507f"
+        },
+        {
+          "path": "README.md",
+          "sha256": "c02a9b113d8855df956d9d854321c5bfef3c2921131070dc0c64870053b42459"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "1c1a87985a2bd25015f5e2413f4041379bea0172b2fce88dae3e6482b50aab26"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-graphics",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "9756d343dc626faf07cdef1cdef29a2b3efed0f6a2fc44ae35fd828e2f482dc1"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "8156455095991b7501f4fa30bdf29c5a541a41e3c479558e757932b07d0b16d1"
+        },
+        {
+          "path": "README.md",
+          "sha256": "6361def881598a3b6d19e7e0d45d77aa5f8c87980db0c36d895cc33bb83f10bf"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "264ea4e6453d508410c33c7e5c05ef71f067cac56efc06603862b36d1fe5dfc3"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-image",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "e5d563b38d2b97209f8e861173de434bd0214cf020e3423a52624cd1d989f006",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "11e6de07b724221273af1609c9833d06c9c7623354ee7f5821da0846f0b988b8"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "9b80ba6d2f783dd4ae6cc1c3f6c18bcc5fe8d460dbd0f7d28c1ba802ed090241"
+        },
+        {
+          "path": "README.md",
+          "sha256": "0aeee0313c19d398e809873dd365d3a02fbf2ef2074d5d7e5fae3b06ff2cdda2"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "c894249d194f6678eab85405db96965489b93eba3863198439f1014a21421c31"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-services",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "583300ad934cba24ff5292aee751ecc070f7ca6b39a574cc21b7b5e588e06a0b",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "3a8a1cd082ba4d328efb9e347584940f782eb6245ae179a6afd40750d31dc0c3"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "fc6e16ad31a8338f5497c22441aba31422787ec752fd42fbed90f4eab470b60a"
+        },
+        {
+          "path": "README.md",
+          "sha256": "fadf220b34ee77bd2179c50138b1be79777a02cce57858125308d818b1737f11"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "291451d0b2f737993ae289f232ae5959ea61bbefbf2ba1c4f6354369e4253851"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-text",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "0cde0dfb48d25d2b4862161a4d5fcc0e3c24367869ad306b0c9ec0073bfed92d",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "ee9c5dd4f36414afdf971820df60d8b4ea4f0767f93c6ea7fdbcf71e6cbab250"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "03598c2d46443f2cff2d4898c72d78b8be884768ef946f42515babe773faf021"
+        },
+        {
+          "path": "README.md",
+          "sha256": "055ed475047a908398289da206178ad9c0e76224b6f55dbea3613227b1c070bf"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "505aa6c21bf36109e6e050055d239bcaf791b18e63cdefb7d601922b9f864545"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-core-video",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "d425caf1df73233f29fd8a5c3e5edbc30d2d4307870f802d18f00d83dc5141a6",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "9d19223267d245d2258aa63244090345c16e0099e6e828841abd72e2e1e4d880"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "c961e5eee0d41058ca7ffce667ae9afac95bf5689bbf01d9ccca3ce340ca8dbf"
+        },
+        {
+          "path": "README.md",
+          "sha256": "0c1eb9e88be7d15cd7afd41621a811ac03acaadaa6fbf7cf88d0f4715cbe2b74"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "05c4588ec0cd5ff712e111b6a56224d5c9fef6b63bc11fc069ff0f2fa7f96b2a"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-encode",
+      "version": "4.1.0",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "ef25abbcd74fb2609453eb695bd2f860d389e457f67dc17cafc8b8cbc89d0c33",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "cf9a8cc812710344d7fe618a5e615530baeeceae5c2826b9d5bb557dc419f159"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "12972b1faf213492f9e78226f23642c461284b739f7be5437d9401465a2869a6"
+        },
+        {
+          "path": "README.md",
+          "sha256": "e980a74b88a62193f7908df3c27e7915f38559870f5e033ddb77fbed65e024a5"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "b23c761215887d90ac44e18b18c8b386f93139c65a4a14f110e22405830cb3f1"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "8d214f5477365ffcbcbb7de058c86ed9a518efb7",
+        "local_path": "evidence/declarations/objc2-upstream/8d214f5477365ffcbcbb7de058c86ed9a518efb7-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative MIT standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-foundation",
+      "version": "0.3.2",
+      "declared_license": "MIT",
+      "selected_license": "MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "eabbe24e325c7b474c6f5de2e955f4f942ecd385608e4b6609b89a1f68ef39cc"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "71158540d55a9b5ce073c856347f0ed1e0e71f4210cfb48a82b1f0e505ba6a50"
+        },
+        {
+          "path": "README.md",
+          "sha256": "50be6f8e1214bd644cdc32c9610278c004205cdddbe2aaed7887d8bad48dd6c5"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "de34f3c84d7cb1cafcedb4e83b7efdd64047872566827477b954f8a853536bb1"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative MIT standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-metal",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "a0125f776a10d00af4152d74616409f0d4a2053a6f57fa5b7d6aa2854ac04794",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "8ea9d2d00d2e462d2f1e0a5bb242ccc8753c2bcd3441edd1d2cf05cba69092ff"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "aeaa98ce9f8fb6e92e995b794f49f3a5d0c2a40f443dc2427154b356f5a1b8f8"
+        },
+        {
+          "path": "README.md",
+          "sha256": "d55a05ffe37725dade5124e86a457b5d3c83bbdada1868233ede24a3dec8dbd9"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "ea5eaec8d2785ebed65a43cdf097051d8900c7547797cea4bb3c7ba4476e052a"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-quartz-core",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "96c1358452b371bf9f104e21ec536d37a650eb10f7ee379fff67d2e08d537f1f",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "7af27150fadd5ac0b3e86ec173b4e3e2b0dd42d614de963a0c9f0bf55cc7b4d9"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "ca303efdd2bcb7958d3e0a08f9b7adb327a2942d0730cda5991365c48016f4d4"
+        },
+        {
+          "path": "README.md",
+          "sha256": "655e91cca9d73db675f3ceb77d74c77a2261425c9b250a904f732704abcd4650"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "d18b21bb115491577880f7f8c491ac10dd8d9947bd27fdc3f6dafcf4cf92b2e9"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-security",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "709fe137109bd1e8b5a99390f77a7d8b2961dafc1a1c5db8f2e60329ad6d895a",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "8012c9d7a498779cffd3aa16775d98c3c75dba1af51b3e6b2bd3739e8a4dcb24"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "e7cf64a82716823985ecc156f57c06c378f1294c1b2fb8c14d66098541741d20"
+        },
+        {
+          "path": "README.md",
+          "sha256": "1744ad13f9d144eac9f437f7bef21bf24fedd41c287766ea7fa166754e8d9295"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "7984dc30856267fc3fa55dcfafe860b9baf79c417ae43881859b7aa2838236a3"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    },
+    {
+      "package": "objc2-user-notifications",
+      "version": "0.3.2",
+      "declared_license": "Zlib OR Apache-2.0 OR MIT",
+      "selected_license": "Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "source_archive_sha256": "9df9128cbbfef73cda168416ccf7f837b62737d748333bfe9ab71c245d76613e",
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "sha256": "77124f44646539c01cbf5e523fe51b3fef7892c114f06ee9b98df9cd88cf5236"
+        },
+        {
+          "path": "Cargo.toml.orig",
+          "sha256": "f389b8f73362305f31fbc4583b6048818f5d7abfe18f884d1058532d5396e3a0"
+        },
+        {
+          "path": "README.md",
+          "sha256": "b45e89caebbf8720786100a043310ea7bdc7ffa28b463ab2081ce518d9ca57a9"
+        },
+        {
+          "path": ".cargo_vcs_info.json",
+          "sha256": "f9f9fc21b411afa8a20002f259187760b838f8fb6db54814db214c1682a14344"
+        }
+      ],
+      "headers": [],
+      "retain_source_archive": true,
+      "upstream_declaration": {
+        "repository": "https://github.com/madsmtm/objc2",
+        "commit": "7b1abfd750a2cacaea71d6a56ecfb83cb7de560b",
+        "local_path": "evidence/declarations/objc2-upstream/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b-LICENSE.md",
+        "url": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54"
+      },
+      "rationale": "Owner-approved narrow declaration exception for this exact package version and locked source archive, selecting its explicit Apache-2.0 alternative. Retain original metadata, the full checksum-verified unmodified locked archive and the full pinned upstream declaration. Supply unchanged normative Apache-2.0 standard text with placeholder unfilled, not a recovered original notice. No copyright holder or year inferred. Missing notices and the upstream declaration's explicit Apple SDK derived-work redistribution uncertainty remain unresolved; this is not legal clearance."
+    }
+  ],
+  "normative_licenses": {
+    "Apache-2.0": {
+      "path": "evidence/normative/Apache-2.0.txt",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "MIT": {
+      "path": "evidence/normative/MIT.txt",
+      "url": "https://spdx.org/licenses/MIT.txt",
+      "sha256": "c3b1b78bc8bd3ea13aa4bc9778442d16560270afa235006d816e5e88cef24db4"
+    }
+  }
+}

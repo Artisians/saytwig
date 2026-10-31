@@ -1,0 +1,48 @@
+{
+  "scope": "Reviewed GPUI Kit 0.8.1 default Assets source, compiled into the native application. Include full Lucide ISC/Feather MIT attribution. System-selected fonts are not redistributed. New asset selection or dependency versions require review.",
+  "font_policy": "No application font files are bundled by the current application. GPUI svg renderer requests optional assets from its asset source; the configured default GPUI Kit Assets source contains only default-icons.txt SVGs. IBM Plex/Lilex include_bytes references in gpui-pre svg_renderer are cfg(test), not this production build.",
+  "sources": [
+    {
+      "package": "gpui-kit-assets",
+      "version": "0.8.1",
+      "files": {
+        "build.rs": "04792023e99a88319c1224a4f393c6c31dd3cabd67535c1782c06986ac699a90",
+        "src/native_assets.rs": "da95489d20d0aa1bb17a4ee72ddc074eef786e569e610d0eef06291b4fc6673d",
+        "default-icons.txt": "2a9d9c3cbd277a50abe030b8127b041ad83e5677cf53b67aa7d2e83e11badf41",
+        "LICENSE-LUCIDE": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+      }
+    },
+    {
+      "package": "gpui-kit",
+      "version": "0.8.1",
+      "files": {
+        "src/lib.rs": "9f6a8305221bc87e1c345a60f9685dde6fad71aa0bc22615ea7dad4bb2f0f2fd"
+      }
+    },
+    {
+      "package": "gpui-pre",
+      "version": "0.3.10",
+      "files": {
+        "src/svg_renderer.rs": "fb12dae87c0cd4c5f5a1fbbd2f9548d52fde9440c21e3d576dfeb0233eda88a6"
+      }
+    },
+    {
+      "package": "gpui-component",
+      "version": "0.8.1",
+      "files": {
+        "src/theme/mod.rs": "e3e7871d06d925ed818bc2b4290690f595f7cc383c69f37ed2c9afd0dc81292c",
+        "src/theme/mono_font.rs": "9249489b11d334d68835702d3d6f3168259ede5d7a564cb931e4f063da1c872c"
+      }
+    }
+  ],
+  "application_assets": [
+    {
+      "path": "assets/saytwig.svg",
+      "sha256": "69ea415614337ed646f6cd9882d1700d7ea3827e89c0f33369eb1123db60ef4f",
+      "license": "MIT",
+      "ownership": "First-party Saytwig asset",
+      "source": "crates/app/src/shell.rs",
+      "embedding": "include_bytes!(\"../../../assets/saytwig.svg\")"
+    }
+  ]
+}

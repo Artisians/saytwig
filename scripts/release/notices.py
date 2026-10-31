@@ -47,8 +47,7 @@ def package_key(package):
 def upstream_evidence(packages, output, blockers):
     selected = {package_key(p): p for p in packages}
     evidence = {}
-    configured_upstream = {}
-    config = (HERE / "about.toml").read_text(encoding="utf-8")
+    clarifications = {}
     for item in json.loads((HERE / "upstream-evidence.json").read_text(encoding="utf-8")):
         key = (item["package"], item["version"])
         if key not in selected:
@@ -79,23 +78,12 @@ def upstream_evidence(packages, output, blockers):
             selected_text = text[text.index(item["selected_start"]):]
             if digest(selected_text.encode("utf-8")) != checksum:
                 blockers.append(f"Selected upstream text changed: {key}")
-        signature = (item["selected_license"], checksum)
-        if item["package"] in configured_upstream:
-            if configured_upstream[item["package"]] != signature:
-                blockers.append(f"Multiple versions need separate upstream recipes: {item['package']}")
-            continue
-        configured_upstream[item["package"]] = signature
-        section = json.dumps(item["package"])
-        config += (f"\n[{section}.clarify]\nlicense = {json.dumps(item['selected_license'])}\n"
-                   f"[[{section}.clarify.files]]\n"
-                   f"path = {json.dumps(str((HERE / file['local_path']).resolve()))}\n"
-                   f"checksum = {json.dumps(checksum)}\n")
+        recipe_file = {"path": str((HERE / file["local_path"]).resolve()), "checksum": checksum}
         if item.get("selected_start"):
-            config += f"start = {json.dumps(item['selected_start'])}\n"
-    config_path = output / "harvest-config.toml"
+            recipe_file["start"] = item["selected_start"]
+        clarifications[key] = {"license": item["selected_license"], "files": [recipe_file]}
     # Combined-license files and inherited notices can confuse the scanner.
     # These reviewed clarifications preserve the complete original files.
-    configured = {}
     for item in json.loads((HERE / "local-clarifications.json").read_text(encoding="utf-8")):
         key = (item["package"], item["version"])
         if key not in selected:
@@ -105,23 +93,16 @@ def upstream_evidence(packages, output, blockers):
             blockers.append(f"Local license declaration changed: {key}")
             continue
         base = Path(package["manifest_path"]).parent
-        section = json.dumps(item["package"])
+        recipe_files = []
         for file in item["files"]:
             source = base / file["path"]
             if not source.is_file() or digest(source.read_bytes()) != file["sha256"]:
                 blockers.append(f"Local clarification evidence changed: {key} {file['path']}")
-        signature = (item["selected_license"], json.dumps(item["files"], sort_keys=True))
-        if item["package"] in configured:
-            if configured[item["package"]] != signature:
-                blockers.append(f"Multiple versions need separate clarification recipes: {item['package']}")
-            continue
-        configured[item["package"]] = signature
-        config += f"\n[{section}.clarify]\nlicense = {json.dumps(item['selected_license'])}\n"
-        for file in item["files"]:
-            config += (f"[[{section}.clarify.files]]\npath = {json.dumps(file['path'])}\n"
-                       f"checksum = {json.dumps(file['sha256'])}\n")
+            recipe_file = {"path": str(source.resolve()), "checksum": file["sha256"]}
             if file.get("license"):
-                config += f"license = {json.dumps(file['license'])}\n"
+                recipe_file["license"] = file["license"]
+            recipe_files.append(recipe_file)
+        clarifications[key] = {"license": item["selected_license"], "files": recipe_files}
     exceptions = json.loads((HERE / "declaration-exceptions.json").read_text(encoding="utf-8"))
     for item in exceptions["packages"]:
         key = (item["package"], item["version"])
@@ -136,12 +117,26 @@ def upstream_evidence(packages, output, blockers):
         if package["license"] != item["declared_license"]:
             blockers.append(f"Reviewed declaration changed: {key}")
             continue
+        if package["source"] != item.get("source", package["source"]):
+            blockers.append(f"Reviewed declaration source changed: {key}")
+            continue
         files = []
         for file in item["files"]:
             source = base / file["path"]
             if digest(source.read_bytes()) != file["sha256"]:
                 blockers.append(f"Declaration evidence changed: {key} {file['path']}")
             files.append((source, file["path"], file["sha256"]))
+        declaration = item.get("upstream_declaration")
+        if declaration:
+            vcs_path = base / ".cargo_vcs_info.json"
+            if (package["repository"] != declaration["repository"] or not vcs_path.is_file()
+                    or json.loads(vcs_path.read_text())["git"]["sha1"] != declaration["commit"]):
+                blockers.append(f"Declaration upstream provenance changed: {key}")
+                continue
+            source = HERE / declaration["local_path"]
+            if digest(source.read_bytes()) != declaration["sha256"]:
+                blockers.append(f"Declaration upstream text changed: {key}")
+            files.append((source, "UPSTREAM-LICENSE.md", declaration["sha256"]))
         for header in item["headers"]:
             source = HERE / header["local_path"]
             if (digest((base / header["source_path"]).read_bytes()) != header["source_sha256"]
@@ -159,17 +154,47 @@ def upstream_evidence(packages, output, blockers):
         if item.get("retain_source_archive"):
             archive = retain_source_archive(package, output, blockers)
             if archive:
+                if archive["sha256"] != item.get("source_archive_sha256", archive["sha256"]):
+                    blockers.append(f"Reviewed source archive changed: {key}")
                 evidence[key].append(archive)
         destination = output / "declaration-evidence" / f"{key[0]}-{key[1]}" / "EVIDENCE.txt"
         destination.write_text(item["rationale"] + "\nStandard text source: " + normative_record["url"]
+                               + ("\nPinned upstream declaration: " + declaration["url"] if declaration else "")
                                + "\nThe standard text's placeholder is intentionally unfilled.\n",
                                encoding="utf-8")
-        section = json.dumps(item["package"])
-        config += (f"\n[{section}.clarify]\nlicense = {json.dumps(item['selected_license'])}\n"
-                   f"[[{section}.clarify.files]]\npath = {json.dumps(str(normative.resolve()))}\n"
-                   f"checksum = {json.dumps(normative_record['sha256'])}\n")
-    config_path.write_text(config, encoding="utf-8")
-    return evidence, config_path
+        clarifications[key] = {"license": item["selected_license"], "files": [
+            {"path": str(normative.resolve()), "checksum": normative_record["sha256"]}]}
+
+    # cargo-about configures names, not versions. Only assigned exact versions
+    # may contribute from a pass; equal checked license bytes can share a recipe.
+    variants = {}
+    for key in sorted(selected):
+        recipe = clarifications.get(key)
+        signature = (recipe["license"], tuple((f["checksum"], f.get("license"))
+                                            for f in recipe["files"])) if recipe else None
+        choices = variants.setdefault(key[0], {})
+        choices.setdefault(signature, (recipe, set()))[1].add(key)
+    configurations = []
+    for index in range(max((len(v) for v in variants.values()), default=1)):
+        config = (HERE / "about.toml").read_text(encoding="utf-8")
+        members = set()
+        for name, choices in variants.items():
+            choices = list(choices.values())
+            recipe, keys = choices[min(index, len(choices) - 1)]
+            if index < len(choices):
+                members.update(keys)
+            if recipe is None:
+                continue
+            section = json.dumps(name)
+            config += f"\n[{section}.clarify]\nlicense = {json.dumps(recipe['license'])}\n"
+            for file in recipe["files"]:
+                config += f"[[{section}.clarify.files]]\n"
+                config += "".join(f"{k} = {json.dumps(v)}\n" for k, v in file.items())
+        suffix = f"-{index + 1}" if index else ""
+        config_path = output / f"harvest-config{suffix}.toml"
+        config_path.write_text(config, encoding="utf-8")
+        configurations.append((config_path, members))
+    return evidence, configurations
 
 
 def retain_source_archive(package, output, blockers):
@@ -298,7 +323,7 @@ def generate(args):
     packages = [p for p in metadata["packages"] if package_key(p) in keys]
     if len(packages) != len(keys):
         raise RuntimeError("Cargo tree/package metadata mismatch or ambiguous package identities")
-    upstream, config_path = upstream_evidence(packages, output, blockers)
+    upstream, configurations = upstream_evidence(packages, output, blockers)
     covered_source(packages, output, blockers)
     inventory = []
     source_texts = {}
@@ -337,31 +362,36 @@ def generate(args):
     collect_assets(packages, output, blockers)
     shutil.copyfile(ROOT / "LICENSE", output / "SAYTWIG-LICENSE.txt")
     shutil.copyfile(ROOT / "Cargo.lock", output / "Cargo.lock")
-    harvest_path = output / "HARVEST.json"
     # cargo-about 0.9.2's macOS filter omits keyring's security-framework packages.
     # Harvest all platforms there; membership below still uses the target Cargo tree.
     harvest_target = [] if args.target.endswith("-apple-darwin") else ["--target", args.target]
-    about = subprocess.run([
-        "cargo-about", "generate", "--manifest-path", "Cargo.toml", "--workspace",
-        "--config", str(config_path), "--locked", "--fail", "--offline",
-        *harvest_target, *feature_args(features), "--format", "json",
-        "--output-file", str(harvest_path),
-    ], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-        env={**os.environ, "RAYON_NUM_THREADS": "2"}, timeout=600)
-    # Retain diagnostics for reviewers, not for license text substitution.
-    (output / "HARVEST-DIAGNOSTICS.txt").write_text(about.stderr, encoding="utf-8")
     texts = []
     covered = set()
     addenda = []
-    if about.returncode:
-        blockers.append("cargo-about could not satisfy every expression; see HARVEST-DIAGNOSTICS.txt")
-        print(about.stderr[:16384], file=sys.stderr)
-    else:
+    harvests = []
+    diagnostics = []
+    selected_packages = {package_key(p): p for p in packages}
+    for index, (config_path, members) in enumerate(configurations):
+        suffix = f"-{index + 1}" if index else ""
+        harvest_path = output / f"HARVEST{suffix}.json"
+        about = subprocess.run([
+            "cargo-about", "generate", "--manifest-path", "Cargo.toml", "--workspace",
+            "--config", str(config_path), "--locked", "--fail", "--offline",
+            *harvest_target, *feature_args(features), "--format", "json",
+            "--output-file", str(harvest_path),
+        ], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+            env={**os.environ, "RAYON_NUM_THREADS": "2"}, timeout=600)
+        diagnostics.append(about.stderr)
+        harvests.append({"path": harvest_path.name, "config": config_path.name,
+                         "packages": sorted(members)})
+        if about.returncode:
+            blockers.append(f"cargo-about could not satisfy every expression in {harvest_path.name}; see HARVEST-DIAGNOSTICS.txt")
+            print(about.stderr[:16384], file=sys.stderr)
+            continue
         result = json.loads(harvest_path.read_text(encoding="utf-8"))
-        selected_packages = {package_key(p): p for p in packages}
         for license in result["licenses"]:
             users = sorted({package_key(u["crate"]) for u in license["used_by"]
-                            if package_key(u["crate"]) in keys})
+                            if package_key(u["crate"]) in members})
             if not users:
                 continue
             covered.update(users)
@@ -391,16 +421,18 @@ def generate(args):
             texts.append("\n" + "=" * 72 + "\n" + license["name"] + "\n" +
                          "Used by: " + ", ".join(f"{n} {v}" for n, v in users) +
                          "\n\n" + license["text"] + "\n")
-        for package in packages:
-            if package["source"] is not None and package_key(package) not in covered:
-                blockers.append(f"Missing resolved notice: {package['name']} {package['version']}")
+    # Retain diagnostics for reviewers, not for license text substitution.
+    (output / "HARVEST-DIAGNOSTICS.txt").write_text("".join(diagnostics), encoding="utf-8")
+    for package in packages:
+        if package["source"] is not None and package_key(package) not in covered:
+            blockers.append(f"Missing resolved notice: {package['name']} {package['version']}")
     (output / "RUST-THIRD-PARTY-NOTICES.txt").write_text("".join(texts), encoding="utf-8")
     if digest((ROOT / "Cargo.lock").read_bytes()) != lock_hash:
         blockers.append("Cargo.lock changed while generating notices; rerun against frozen source")
     report = {"schema_version": 1, "target": args.target, "features": features,
               "cargo_lock_sha256": lock_hash, "cargo_about": version,
               "scope": "Production normal/build dependencies; build-only tooling included conservatively. Not a binary linkage claim or legal clearance.",
-              "packages": inventory, "source_license_addenda": addenda,
+              "packages": inventory, "source_license_addenda": addenda, "harvests": harvests,
               "blockers": sorted(set(blockers))}
     write_json(output / "INVENTORY.json", report)
     if blockers:

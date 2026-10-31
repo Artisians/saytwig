@@ -59,16 +59,44 @@ Check the target, features, tool version, Cargo.lock hash, and retained evidence
 A source CI result or partially populated output directory is not a notices pass.
 Source publication remains independent of this binary gate.
 
-## macOS packages remain blocked
+## Reviewed macOS exceptions, 2026-10-31
 
 The first native macOS packaging run failed the notices gate on both architectures.
 Five additional upstream receipts now cover `accesskit_macos 0.26.3`, `objc-sys 0.3.5`,
 `objc2 0.5.3`, `objc2-app-kit 0.2.2`, and `objc2-foundation 0.2.2`. Each retains the
 exact license text from the published crate's repository and VCS commit.
 
-Twenty-one newer ObjC packages have upstream license declarations but no complete
-notice text at their published commits. The older `block 0.1.6` and `malloc_buf 0.0.6`
-archives lack published VCS metadata. The current gate does not substitute a guessed
-commit or extend its existing declaration exceptions to those packages. macOS
-distribution remains blocked pending source-backed evidence or an explicitly
-reviewed change to that policy. No macOS notices pass or legal clearance is claimed.
+The owner approved narrow declaration exceptions for 23 additional exact versions.
+Twenty-one newer ObjC packages have upstream declarations but no complete notice
+text at their published commits. All retain the full pinned upstream declaration,
+including its explicit uncertainty about Apple SDK derived-work redistribution.
+The older `block 0.1.6` and `malloc_buf 0.0.6` archives lack published VCS metadata.
+No commit is guessed for them. Every exception retains the full unmodified locked
+source archive and original metadata. Standard license text has its placeholder
+unfilled. No copyright holder or year is inferred.
+
+Cargo-about's name-only recipes now run in separate passes when old and new
+versions require different evidence. Each exact version contributes from its
+assigned pass only. Old original notices remain intact. SPDX solving, canonical-only
+rejection, per-package evidence, source hashes, coverage and READY checks remain enabled.
+
+Actual cloud generation passed for macOS ARM with 487 third-party packages and
+macOS Intel with 488. Both exited zero, have no blockers, and emitted READY for
+Cargo.lock SHA-256 `2b25339e7850b73f60242ef9d77efabfa259be217fb724e268bbd923f97241ef`
+with cargo-about 0.9.2 and no extra features. Independent ARM artifact inspection
+verified all 1,024 evidence records, 23 locked archives, 87 metadata files, and
+21 complete upstream declarations. The earlier same-lock ARM receipt had 46
+blocker messages across 23 versions and no READY.
+
+These are source-harvesting receipts on Linux ARM, not native macOS packaging,
+installation or dictation acceptance. Native CI must regenerate evidence on its
+own immutable checkout before distribution. The source-retaining exceptions do
+not resolve missing original notices or the upstream SDK uncertainty, and are
+not legal clearance. Unknown versions and changed hashes still block generation.
+
+The same current recipe also passed Windows generation with 474 third-party
+packages and Linux with 577. All 881 Windows and 1,060 Linux retained evidence
+records matched their hashes. Linux notice bytes match the previous same-lock
+receipt. Windows selected zune-core 0.5.3's explicit MIT alternative instead of
+Zlib; its original MIT, Apache and Zlib files all remain retained. This is a
+permitted license choice, not a missing or synthesized notice.

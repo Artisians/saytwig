@@ -36,15 +36,15 @@ and branches are not deleted or relabeled.
 ## Packages and limits
 
 The following recipes are implemented, not a list of published downloads.
-Both macOS packages remain blocked on the [notices gate](../scripts/release/STATUS.md).
-Because publication requires all four packages, this also blocks automatic
-nightly publication. No macOS notices pass is claimed.
+Every native job must regenerate and pass the [notices gate](../scripts/release/STATUS.md).
+The reviewed macOS declaration exceptions retain exact locked source archives and
+upstream caveats. They do not establish legal clearance or native app acceptance.
 
 | Platform | Package | Limits |
 | :--- | :--- | :--- |
 | Windows x64 | `*-setup.exe`, per-user Inno Setup installer | Unsigned. Native Windows x64 only. Windows ARM, including x64 emulation, and 32-bit Windows are rejected. |
-| macOS Apple Silicon | Planned `aarch64-apple-darwin.dmg` with `Saytwig.app` | Notices blocked. macOS 13+. Ad-hoc signature only, no Developer ID signature or notarization. |
-| macOS Intel | Planned `x86_64-apple-darwin.dmg` with `Saytwig.app` | Notices blocked. macOS 13+. Same experimental limitations. |
+| macOS Apple Silicon | `aarch64-apple-darwin.dmg` with `Saytwig.app` | macOS 13+. Ad-hoc signature only, no Developer ID signature or notarization. |
+| macOS Intel | `x86_64-apple-darwin.dmg` with `Saytwig.app` | macOS 13+. Same experimental limitations. |
 | Linux x64 | `x86_64-unknown-linux-gnu.tar.gz` | Built on Ubuntu 24.04. Requires compatible graphics/audio system libraries. Not a self-contained AppImage or distro installer. |
 
 Windows setup installs under the current user's local application directory,

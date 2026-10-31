@@ -107,7 +107,7 @@ receipt scope and remaining platform requirements. The packaging workflow must
 regenerate notices from its own immutable checkout. A source CI result alone
 is not proof that distributable notices have passed.
 
-The Apache declaration exceptions are deliberately limited to `mac 0.1.1` and
+The original Apache declaration exceptions cover `mac 0.1.1` and
 `pathfinder_geometry 0.5.1`. The published archive explicitly offers Apache-2.0;
 for mac the README independently repeats it, and Pathfinder source headers repeat
 it with original project copyright. `declaration-exceptions.json` pins those
@@ -123,6 +123,18 @@ is inferred from Cargo authors. This addresses the stricter tooling evidence
 policy; it does not establish what unavailable upstream material might contain
 or replace independent release review.
 
+The owner-approved macOS exceptions cover 23 additional exact versions listed in
+`declaration-exceptions.json`. Each pins the registry source, locked archive,
+published metadata and selected license. All retain the complete unmodified
+source archive. The 21 packages with published VCS metadata also retain their
+full upstream declaration at that commit. No commit is guessed for `block 0.1.6`
+or `malloc_buf 0.0.6`, which lack published VCS metadata. Seventeen packages
+explicitly offer Apache-2.0; six are MIT-only. Their supplied standard text is
+normative, not a recovered original notice, and its placeholder stays unfilled.
+The upstream ObjC declaration's Apple SDK derived-work redistribution uncertainty
+remains unresolved and travels with each applicable package. This exception is
+not legal clearance and does not apply to future versions or changed hashes.
+
 Some Windows crates ship their real Microsoft notices as lowercase `license-mit`;
 hash-pinned local clarifications preserve those actual files. The scanner uses
 workspace metadata so a workspace-selected production feature (Windows tray) is
@@ -136,8 +148,10 @@ packages. The generator harvests without that filter, then requires complete
 coverage of the target-specific Cargo tree. Other-platform packages do not enter
 the final notices. This keeps the pinned tool and the completeness gate intact.
 
-For multiple versions of one crate, a shared cargo-about clarification is used
-only when the selected license and exact terms hash match. Each version still
-retains its own full original notices. For zune-jpeg, the shared Zlib terms exclude
+Cargo-about configures crate names rather than versions. Different version-specific
+recipes run in separate harvest passes. Only the assigned exact versions contribute
+from each pass; `INVENTORY.json` records those assignments and the raw harvest files.
+A shared clarification is used only when the selected license and exact terms
+hash match. Each version still retains its own full original notices. For zune-jpeg, the shared Zlib terms exclude
 no obligations; the newer copyright header remains in its retained full file.
 The dpi Apache-2.0 AND MIT declaration keeps both original license files.

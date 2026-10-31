@@ -67,20 +67,17 @@ h1 { font-size: clamp(64px, 8vw, 96px); }
 .source-section { background: var(--mint); color: var(--ground); padding: 115px 7vw 30px; position: relative; }
 .source-inner { max-width: 1080px; margin: auto; }
 .source-section h2 { font-size: clamp(58px, 8vw, 96px); }
-.button { display: inline-flex; align-items: center; gap: 35px; background: var(--ground); color: var(--ink); margin-top: 35px; padding: 17px 24px; min-height: 56px; border-radius: 8px; text-decoration: none; transition: background .15s; }
-.button:hover { background: #273c31; color: var(--ink); }
-.button:active { background: #344d40; }
 .release-note { margin-top: 18px; font-size: 13px; line-height: 1.6; color: #314c40; }
 .disclosures { margin-top: 70px; max-width: 720px; }
 details { border-top: 1px solid #6a9b87; font-size: 15px; }
 summary { cursor: pointer; padding: 22px 0; margin-left: 20px; }
 details p { max-width: 65ch; margin-bottom: 18px; line-height: 1.65; }
 details[open] { padding-bottom: 24px; }
-.source-section a:not(.button):hover { color: #355746; }
+.source-section a:hover { color: #355746; }
 .source-section ::selection { background: var(--ground); color: var(--mint); }
 footer { margin-top: 80px; border-top: 1px solid #6a9b87; padding-top: 26px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 footer .brand { font-size: 23px; }
-footer>a:last-child, .disclosures a { min-height: 44px; display: inline-flex; align-items: center; }
+footer>a:last-child { min-height: 44px; display: inline-flex; align-items: center; }
 footer>a:last-child { font-size: 13px; }
 @media(max-width:760px) {
   .site-header { height: 86px; padding-inline: 24px; }
@@ -114,7 +111,6 @@ footer>a:last-child { font-size: 13px; }
   .scene-controls button { font-size: 12px; }
   .source-section { padding: 82px 24px 24px; }
   .source-section h2 { font-size: clamp(49px, 12vw, 62px); }
-  .button { font-size: 14px; gap: 25px; }
   .disclosures { margin-top: 52px; }
   footer { margin-top: 58px; }
 }

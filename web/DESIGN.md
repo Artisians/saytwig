@@ -3,8 +3,6 @@ name: Saytwig web
 description: A near-black scroll story with mint emphasis and a mint source section.
 colors:
   primary: "#a5d6c3"
-  action-hover: "#273c31"
-  action-active: "#344d40"
   mint-text-muted: "#314c40"
   mint-rule: "#6a9b87"
   mint-link-hover: "#355746"
@@ -35,22 +33,11 @@ typography:
     fontSize: "12px"
     fontWeight: 400
 rounded:
-  action: "8px"
   waveform: "4px"
 spacing:
   small: "16px"
   medium: "28px"
   section: "115px"
-components:
-  button-primary:
-    backgroundColor: "{colors.neutral-ground}"
-    textColor: "{colors.neutral-ink}"
-    rounded: "{rounded.action}"
-    padding: "17px 24px"
-  button-primary-hover:
-    backgroundColor: "{colors.action-hover}"
-  button-primary-active:
-    backgroundColor: "{colors.action-active}"
 ---
 
 # Design System: Saytwig web
@@ -85,12 +72,9 @@ The design uses flat color fields, whitespace and one-pixel rules. It has no sha
 
 ## Shapes
 
-The source action is a rounded rectangle. Narrow rounded bars form the waveform. Icons use stroked SVG geometry. The approved mark is an unchanged SVG asset, not a newly drawn approximation.
+Narrow rounded bars form the waveform. Icons use stroked SVG geometry. The approved mark is an unchanged SVG asset, not a newly drawn approximation.
 
 ## Components
-
-### Source action
-The main action has a dark fill, light text, a 56px minimum height and an arrow. Hover and active states use the documented dark-green colors. A 150ms background transition is disabled for reduced motion.
 
 ### Header
 The header contains the wordmark and source link. Motion follows the system reduced-motion preference without a page-level toggle.
@@ -102,7 +86,7 @@ Voice, Words and Local are native buttons with 44px minimum heights. The active 
 Scroll updates coalesce into one pending animation frame. A finite entrance animates the waveform. Scroll progress compresses the bars, reveals the example sentence and shows the local-recognition scene. No animation loop runs while the page is idle.
 
 ### Disclosures
-Native details and summary elements contain concise privacy information. Mint-section rules separate them. Keyboard focus uses a 2px current-color outline with a 6px offset across interactive controls.
+Native details and summary elements contain concise privacy information. The separate account link and nightly-source button are removed at the owner's request. Source remains available in the header. Keyboard focus uses a 2px current-color outline with a 6px offset across interactive controls.
 
 ## Do's and Don'ts
 

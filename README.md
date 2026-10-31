@@ -35,8 +35,6 @@ Check the [package status](scripts/release/STATUS.md) and the files attached to 
 Native installation, microphone permissions, and end-to-end dictation still need
 hands-on verification before Saytwig is ready for everyday use.
 
-Nightly prereleases come from `main` only after all four package jobs pass.
-Stable releases require separate native QA and approval.
 See [release requirements](docs/release.md) for platform warnings and release policy.
 
 ## Build from source

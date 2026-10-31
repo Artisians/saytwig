@@ -131,9 +131,10 @@ full upstream declaration at that commit. No commit is guessed for `block 0.1.6`
 or `malloc_buf 0.0.6`, which lack published VCS metadata. Seventeen packages
 explicitly offer Apache-2.0; six are MIT-only. Their supplied standard text is
 normative, not a recovered original notice, and its placeholder stays unfilled.
-The upstream ObjC declaration's Apple SDK derived-work redistribution uncertainty
-remains unresolved and travels with each applicable package. This exception is
-not legal clearance and does not apply to future versions or changed hashes.
+The upstream Objective-C declaration's uncertainty about redistribution of works
+derived from Apple SDKs remains unresolved and travels with each applicable package.
+This exception is not legal clearance and does not apply to future versions or
+changed hashes.
 
 Some Windows crates ship their real Microsoft notices as lowercase `license-mit`;
 hash-pinned local clarifications preserve those actual files. The scanner uses

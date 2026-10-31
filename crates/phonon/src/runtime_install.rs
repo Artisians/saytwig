@@ -157,14 +157,11 @@ pub fn setup_capability() -> SetupCapability {
         runtime_installed_bytes: spec.installed_bytes,
         setup_peak_bytes: None,
         sources: if spec.target == WINDOWS.target {
-            &["python.org", "PyPI", "Hugging Face"]
+            &["python.org", "PyPI", "GitHub", "Hugging Face"]
+        } else if spec.target.contains("apple") {
+            &["GitHub", "PyPI", "Hugging Face"]
         } else {
-            &[
-                "Astral python-build-standalone on GitHub",
-                "PyPI",
-                "PyTorch CPU index",
-                "Hugging Face",
-            ]
+            &["GitHub", "PyPI", "PyTorch CPU index", "Hugging Face"]
         },
         prerequisites: if spec.target == WINDOWS.target {
             "Native Windows x64 with the official Microsoft Visual C++ x64 runtime"

@@ -198,7 +198,9 @@ def build(target, ref, commit):
             package.add(stage, arcname="saytwig")
     if not archive.is_file() or archive.stat().st_size == 0:
         raise ValueError("No native package produced")
-    archive.with_name(archive.name + ".sha256").write_text(f"{sha256(archive)}  {archive.name}\n", encoding="utf-8")
+    archive.with_name(archive.name + ".sha256").write_text(
+        f"{sha256(archive)}  {archive.name}\n", encoding="utf-8", newline="\n"
+    )
     print(f"Experimental package: {archive}")
 
 

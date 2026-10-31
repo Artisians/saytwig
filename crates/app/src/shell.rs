@@ -345,10 +345,13 @@ impl Shell {
                     .get("shortcut_enabled")
                     .and_then(serde_json::Value::as_bool)
                     == Some(true);
-                if !self.restore_hotkey {
-                    if let Some(hotkey) = self.hotkey.as_mut() {
-                        let _ = hotkey.unbind();
-                    }
+                if !self.restore_hotkey
+                    && self
+                        .hotkey
+                        .as_mut()
+                        .is_some_and(|hotkey| hotkey.unbind().is_err())
+                {
+                    self.hotkey = None;
                 }
             }
             if let Event::Failed(generation, _) = &event {
@@ -837,8 +840,12 @@ impl Shell {
             .is_some_and(|hotkey| hotkey.bind(value).is_ok());
         if !save {
             if !bound {
-                if let Some(hotkey) = self.hotkey.as_mut() {
-                    let _ = hotkey.unbind();
+                if self
+                    .hotkey
+                    .as_mut()
+                    .is_some_and(|hotkey| hotkey.unbind().is_err())
+                {
+                    self.hotkey = None;
                 }
                 if self.model.notice != Some("settings_changed") {
                     self.model.notice = Some("shortcut_unavailable");

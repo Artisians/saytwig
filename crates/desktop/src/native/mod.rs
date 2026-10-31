@@ -39,7 +39,7 @@ impl HotkeyBackend for NativeHotkeys {
             .parse()
             .map_err(|_| DesktopError::HotkeyUnavailable)?;
         if self.registered.contains_key(&hotkey.id()) {
-            return Err(DesktopError::HotkeyUnavailable);
+            return Ok(hotkey.id());
         }
         self.manager
             .register(hotkey)

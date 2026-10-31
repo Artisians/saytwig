@@ -51,6 +51,7 @@
   "storage_unavailable": "No data folder is available. Settings and history will not be saved.",
   "storage_unreadable": "Existing data could not be read safely. It has not been changed; saving is disabled.",
   "settings_not_saved": "Settings could not be saved. Existing data has not been overwritten.",
+  "settings_changed": "Settings changed elsewhere. Latest settings loaded. Retry your change.",
   "shortcut": "Global shortcut",
   "shortcut_body": "Tap to start; tap again to finish. Registration can be unavailable or conflict with another app.",
   "shortcut_enable": "Enable shortcut",

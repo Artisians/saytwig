@@ -25,6 +25,7 @@ pub(crate) enum EngineState {
 pub(crate) enum Event {
     Engine(EngineState),
     Loaded(Settings, History),
+    SettingsReloaded(Settings, u64),
     History(History),
     Devices(Vec<String>),
     Recording(Generation, CaptureCancellation),
@@ -44,7 +45,7 @@ pub(crate) enum Command {
     Stop,
     Cancel,
     Install(Cancellation),
-    SaveSettings(Settings),
+    SaveSettings(Settings, u64),
     SaveTranscript {
         original: String,
         cleaned: Option<String>,
@@ -60,7 +61,7 @@ struct MailboxState {
     control: AtomicU8,
     reload: AtomicBool,
     devices: AtomicBool,
-    settings: Mutex<Option<Settings>>,
+    settings: Mutex<Option<(Settings, u64)>>,
     wake: mpsc::SyncSender<()>,
 }
 pub(crate) struct CommandSender {
@@ -80,11 +81,13 @@ impl CommandSender {
                 self.work.try_send(command)?
             }
             command @ Command::SaveTranscript { .. } => self.history.try_send(command)?,
-            Command::SaveSettings(settings) => {
+            Command::SaveSettings(settings, epoch) => {
                 let Ok(mut slot) = self.state.settings.try_lock() else {
-                    return Err(mpsc::TrySendError::Full(Command::SaveSettings(settings)));
+                    return Err(mpsc::TrySendError::Full(Command::SaveSettings(
+                        settings, epoch,
+                    )));
                 };
-                *slot = Some(settings);
+                *slot = Some((settings, epoch));
             }
             Command::Stop => {
                 self.state.control.fetch_max(1, Ordering::AcqRel);
@@ -151,8 +154,8 @@ impl Mailbox {
             .lock()
             .ok()
             .and_then(|mut slot| slot.take());
-        if let Some(settings) = settings {
-            actor.save_settings(settings);
+        if let Some((settings, epoch)) = settings {
+            actor.save_settings(settings, epoch);
         }
     }
     fn run(&self, actor: &mut Actor) {
@@ -281,6 +284,7 @@ struct Actor {
     data_root: Option<PathBuf>,
     writable: bool,
     settings_revision: Option<Revision>,
+    settings_epoch: u64,
     last_runtime_phase: Option<phonon_service::Phase>,
 }
 impl Actor {
@@ -299,6 +303,7 @@ impl Actor {
             data_root,
             writable: true,
             settings_revision: None,
+            settings_epoch: 0,
             last_runtime_phase: None,
         }
     }
@@ -388,7 +393,7 @@ impl Actor {
             Command::Stop => self.finish(),
             Command::Cancel => self.cancel(),
             Command::Install(cancellation) => self.install(cancellation),
-            Command::SaveSettings(settings) => self.save_settings(settings),
+            Command::SaveSettings(settings, epoch) => self.save_settings(settings, epoch),
             Command::SaveTranscript { original, cleaned } => {
                 self.save_transcript(original, cleaned)
             }
@@ -571,7 +576,11 @@ impl Actor {
             let _ = active.capture.cancel();
         }
     }
-    fn save_settings(&mut self, settings: Settings) {
+    fn save_settings(&mut self, settings: Settings, epoch: u64) {
+        if epoch != self.settings_epoch {
+            self.emit(Event::Notice("settings_changed"));
+            return;
+        }
         let Some(root) = self.data_root.as_ref().filter(|_| self.writable) else {
             self.emit(Event::Notice("settings_not_saved"));
             return;
@@ -581,6 +590,20 @@ impl Actor {
             Ok(revision) => {
                 self.settings_revision = Some(revision);
                 self.emit(Event::Notice("settings_saved"));
+            }
+            Err(dictation_domain::StoreError::Conflict) => {
+                match (store.load(), self.settings_epoch.checked_add(1)) {
+                    (Ok(snapshot), Some(epoch)) => {
+                        let (settings, revision) = snapshot
+                            .map(|snapshot| (snapshot.value, Some(snapshot.revision)))
+                            .unwrap_or_default();
+                        self.settings_revision = revision;
+                        self.settings_epoch = epoch;
+                        self.emit(Event::SettingsReloaded(settings, epoch));
+                        self.emit(Event::Notice("settings_changed"));
+                    }
+                    _ => self.emit(Event::Notice("settings_not_saved")),
+                }
             }
             Err(_) => self.emit(Event::Notice("settings_not_saved")),
         }

@@ -5,6 +5,7 @@ pub(crate) struct Model {
     pub(crate) session: Session,
     pub(crate) engine: EngineState,
     pub(crate) settings: Settings,
+    pub(crate) settings_epoch: u64,
     pub(crate) settings_loaded: bool,
     pub(crate) history: History,
     pub(crate) last: Option<Transcript>,
@@ -20,6 +21,7 @@ impl Default for Model {
             session: Session::default(),
             engine: EngineState::Checking,
             settings: Settings::default(),
+            settings_epoch: 0,
             settings_loaded: false,
             history: History::default(),
             last: None,
@@ -54,6 +56,10 @@ impl Model {
                 self.settings = settings;
                 self.history = history;
                 self.session.set_cleanup_enabled(false);
+            }
+            Event::SettingsReloaded(settings, epoch) => {
+                self.settings = settings;
+                self.settings_epoch = epoch;
             }
             Event::History(history) => self.history = history,
             Event::Devices(devices) => self.devices = devices,

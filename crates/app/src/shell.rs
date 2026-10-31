@@ -289,7 +289,7 @@ impl Shell {
                 // The accepted final transcript stays in model.last for Copy.
                 self.model.notice = Some("history_not_saved");
             }
-            Command::SaveSettings(_) => self.model.notice = Some("settings_not_saved"),
+            Command::SaveSettings(..) => self.model.notice = Some("settings_not_saved"),
             _ => self.model.notice = Some(notice),
         }
     }
@@ -338,13 +338,21 @@ impl Shell {
                 }
                 _ => {}
             }
-            if let Event::Loaded(settings, _) = &event {
+            if let Event::Loaded(settings, _) | Event::SettingsReloaded(settings, _) = &event {
                 self.sync_inputs = true;
                 self.restore_hotkey = settings
                     .extra
                     .get("shortcut_enabled")
                     .and_then(serde_json::Value::as_bool)
                     == Some(true);
+                if !self.restore_hotkey
+                    && self
+                        .hotkey
+                        .as_mut()
+                        .is_some_and(|hotkey| hotkey.unbind().is_err())
+                {
+                    self.hotkey = None;
+                }
             }
             if let Event::Failed(generation, _) = &event {
                 if self.delivery_generation == Some(*generation) {
@@ -668,7 +676,10 @@ impl Shell {
                                 .settings
                                 .extra
                                 .insert(PLAN_NOTICE_KEY.into(), true.into());
-                            this.send(Command::SaveSettings(this.model.settings.clone()));
+                            this.send(Command::SaveSettings(
+                                this.model.settings.clone(),
+                                this.model.settings_epoch,
+                            ));
                             cx.notify();
                         });
                     })
@@ -813,7 +824,7 @@ impl Shell {
         }
         cx.notify();
     }
-    fn set_hotkey(&mut self, cx: &mut Context<Self>) {
+    fn set_hotkey(&mut self, cx: &mut Context<Self>, save: bool) {
         let value = self.shortcut.read(cx).value();
         let value = if value.trim().is_empty() {
             "Control+Space"
@@ -827,6 +838,21 @@ impl Shell {
             .hotkey
             .as_mut()
             .is_some_and(|hotkey| hotkey.bind(value).is_ok());
+        if !save {
+            if !bound {
+                if self
+                    .hotkey
+                    .as_mut()
+                    .is_some_and(|hotkey| hotkey.unbind().is_err())
+                {
+                    self.hotkey = None;
+                }
+                if self.model.notice != Some("settings_changed") {
+                    self.model.notice = Some("shortcut_unavailable");
+                }
+            }
+            return;
+        }
         self.model.notice = Some(if bound {
             "shortcut_active"
         } else {
@@ -841,7 +867,10 @@ impl Shell {
                 .settings
                 .extra
                 .insert("shortcut".into(), serde_json::Value::String(value.into()));
-            self.send(Command::SaveSettings(self.model.settings.clone()));
+            self.send(Command::SaveSettings(
+                self.model.settings.clone(),
+                self.model.settings_epoch,
+            ));
         }
         cx.notify();
     }
@@ -1018,16 +1047,12 @@ impl Shell {
                     .child(div().text_sm().text_color(rgb(0xb3b3b3)).child(
                         if self.model.active() {
                             self.phase_label().to_owned()
-                        } else if self.hotkey.as_ref().is_some_and(HotkeyLease::is_bound) {
-                            self.model
-                                .settings
-                                .extra
-                                .get("shortcut")
-                                .and_then(serde_json::Value::as_str)
-                                .unwrap_or("Control+Space")
-                                .into()
                         } else {
-                            t("shortcut_inactive").into()
+                            self.hotkey
+                                .as_ref()
+                                .and_then(HotkeyLease::shortcut)
+                                .unwrap_or_else(|| t("shortcut_inactive"))
+                                .into()
                         },
                     )),
             )
@@ -1391,7 +1416,10 @@ impl Shell {
                             .disabled(!self.model.settings_loaded || self.model.active())
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.model.settings.input_device = None;
-                                this.send(Command::SaveSettings(this.model.settings.clone()));
+                                this.send(Command::SaveSettings(
+                                    this.model.settings.clone(),
+                                    this.model.settings_epoch,
+                                ));
                                 cx.notify();
                             })),
                     )
@@ -1405,7 +1433,10 @@ impl Shell {
                             .toggled(self.model.settings.input_device.as_ref() == Some(&name))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.model.settings.input_device = Some(name.clone());
-                                this.send(Command::SaveSettings(this.model.settings.clone()));
+                                this.send(Command::SaveSettings(
+                                    this.model.settings.clone(),
+                                    this.model.settings_epoch,
+                                ));
                                 cx.notify();
                             }))
                     }))
@@ -1440,7 +1471,7 @@ impl Shell {
                         Button::new("bind-shortcut")
                             .disabled(!self.model.settings_loaded)
                             .label(t("apply_shortcut"))
-                            .on_click(cx.listener(|this, _, _, cx| this.set_hotkey(cx))),
+                            .on_click(cx.listener(|this, _, _, cx| this.set_hotkey(cx, true))),
                     ),
             )
             .when(bound, |el| {
@@ -1454,7 +1485,10 @@ impl Shell {
                                 .settings
                                 .extra
                                 .insert("shortcut_enabled".into(), serde_json::Value::Bool(false));
-                            this.send(Command::SaveSettings(this.model.settings.clone()));
+                            this.send(Command::SaveSettings(
+                                this.model.settings.clone(),
+                                this.model.settings_epoch,
+                            ));
                             cx.notify();
                         })),
                 )
@@ -1485,7 +1519,10 @@ impl Shell {
                             .filter(|s| !s.is_empty())
                             .map(str::to_owned)
                             .collect();
-                        this.send(Command::SaveSettings(this.model.settings.clone()));
+                        this.send(Command::SaveSettings(
+                            this.model.settings.clone(),
+                            this.model.settings_epoch,
+                        ));
                         cx.notify();
                     })),
             )
@@ -1974,7 +2011,7 @@ impl Render for Shell {
         }
         if self.restore_hotkey {
             self.restore_hotkey = false;
-            self.set_hotkey(cx);
+            self.set_hotkey(cx, false);
         }
         let body = match self.page {
             Page::Dictation => self.dictation(cx).into_any_element(),

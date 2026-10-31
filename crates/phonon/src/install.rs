@@ -283,12 +283,26 @@ pub(crate) fn publish(source: &Path, destination: &Path) -> Result<()> {
                 .context("Model destination could not be published without replacement");
         }
     }
-    #[cfg(not(any(target_os = "linux", windows)))]
+    #[cfg(target_os = "macos")]
+    {
+        use std::{ffi::CString, os::unix::ffi::OsStrExt};
+        let source = CString::new(source.as_os_str().as_bytes())?;
+        let destination = CString::new(destination.as_os_str().as_bytes())?;
+        // RENAME_EXCL rejects even an empty destination directory atomically.
+        // SAFETY: both pointers reference live NUL-terminated path strings.
+        let moved =
+            unsafe { libc::renamex_np(source.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL) };
+        if moved != 0 {
+            return Err(std::io::Error::last_os_error())
+                .context("Speech destination could not be published without replacement");
+        }
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
         let _ = (source, destination);
         anyhow::bail!("Atomic model publication is currently supported on Windows and Linux");
     }
-    #[cfg(any(target_os = "linux", windows))]
+    #[cfg(any(target_os = "linux", target_os = "macos", windows))]
     Ok(())
 }
 

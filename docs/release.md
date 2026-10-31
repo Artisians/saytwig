@@ -76,6 +76,12 @@ Available packages are not a claim of feature parity or ordinary-user readiness.
 The Windows VC++ prerequisite, interrupted setup recovery, runtime redistribution
 obligations, and native microphone-to-transcript QA remain release work.
 
+The speech library now also has target-pinned macOS and Linux provisioning
+through the existing installer. See the [Unix setup contract](../scripts/phonon/UNIX_SETUP.md).
+This backend work does not establish setup-screen integration or native-device
+acceptance. The platform's `setup_capability()` metadata must drive explicit
+consent before its installer is offered to users.
+
 ## Checks and acceptance
 
 The workflows pin Rust 1.99.1, Python 3.13.16, Cargo.lock, and third-party Actions

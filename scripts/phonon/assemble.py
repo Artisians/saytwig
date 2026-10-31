@@ -1,4 +1,4 @@
-"""Build-time Windows CPU bundle assembler; never run by the speech service.
+"""Pinned CPU bundle assembler; invoked only during explicit installation.
 
 Inputs are immutable upstream artifacts in assets.json. The generated manifest
 hash must be pinned by the app independently of the mutable bundle directory.
@@ -6,6 +6,7 @@ hash must be pinned by the app independently of the mutable bundle directory.
 from __future__ import annotations
 
 import argparse
+import base64
 from concurrent.futures import ThreadPoolExecutor
 from email.parser import BytesParser
 import hashlib
@@ -15,6 +16,7 @@ from pathlib import Path
 import shutil
 import stat
 import sys
+import tarfile
 import threading
 import time
 import tempfile
@@ -23,9 +25,28 @@ import zipfile
 
 SOURCE = Path(__file__).resolve().parent
 TARGET = "windows-x86_64"
+UNIX_TARGETS = {
+    "aarch64-apple-darwin": "arm64",
+    "x86_64-apple-darwin": "x86_64",
+    "aarch64-unknown-linux-gnu": "aarch64",
+    "x86_64-unknown-linux-gnu": "x86_64",
+}
 
 
-def require_x64_assets(assets: dict) -> None:
+def require_target_assets(assets: dict) -> None:
+    if assets.get("target") in UNIX_TARGETS:
+        target = assets["target"]
+        if not assets["python"]["filename"].endswith(f"-{target}-install_only.tar.gz"):
+            raise ValueError("Python archive does not match the locked target")
+        for wheel in assets["wheels"]:
+            tags = wheel["filename"].removesuffix(".whl").rsplit("-", 1)[-1].split(".")
+            for tag in tags:
+                if tag == "any":
+                    continue
+                prefix = "macosx_" if "apple" in target else "manylinux"
+                if not tag.startswith(prefix) or not tag.endswith("_" + UNIX_TARGETS[target]):
+                    raise ValueError("Wheel does not match the locked target")
+        return
     if assets.get("target") != TARGET or not assets["python"]["filename"].endswith("-embed-amd64.zip"):
         raise ValueError("Only the pinned Windows x64 runtime may be assembled")
     for wheel in assets["wheels"]:
@@ -94,13 +115,14 @@ def checked_components(member: str) -> tuple[str, ...]:
     return parts
 
 
-def extract_zip(archive_path: Path, python: Path, wheel: bool = False) -> None:
+def extract_zip(archive_path: Path, python: Path, wheel: bool = False, target: str = TARGET) -> None:
     with zipfile.ZipFile(archive_path) as archive:
         for entry in archive.infolist():
             parts = checked_components(entry.filename)
             if stat.S_ISLNK(entry.external_attr >> 16):
                 raise ValueError("Symlinks are not permitted in runtime archives")
-            base = python / "Lib/site-packages" if wheel else python
+            library = "Lib" if target == TARGET else "lib"
+            base = python / library / "site-packages" if wheel else python
             if wheel and parts[0].endswith(".data"):
                 if len(parts) < 3:
                     if entry.is_dir():
@@ -122,6 +144,55 @@ def extract_zip(archive_path: Path, python: Path, wheel: bool = False) -> None:
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 with destination.open("xb") as output, archive.open(entry) as source:
                     shutil.copyfileobj(source, output)
+
+
+def extract_python_tar(archive_path: Path, destination: Path) -> None:
+    # Materialize only links whose final target is a regular archive member.
+    # The runtime verifier deliberately accepts no filesystem symlinks.
+    with tarfile.open(archive_path, "r:gz") as archive:
+        members = {}
+        for entry in archive:
+            parts = checked_components(entry.name)
+            if parts[0] != "python" or entry.name in members:
+                raise ValueError("Unexpected Python archive layout")
+            if not (entry.isdir() or entry.isfile() or entry.issym() or entry.islnk()):
+                raise ValueError("Unsupported Python archive member")
+            members[entry.name.rstrip("/")] = entry
+            path = destination.joinpath(*parts)
+            if entry.isdir():
+                path.mkdir(parents=True, exist_ok=True)
+            elif entry.isfile():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("xb") as output, archive.extractfile(entry) as stream:
+                    shutil.copyfileobj(stream, output)
+                path.chmod(0o755 if entry.mode & 0o111 else 0o644)
+        for name, entry in members.items():
+            if entry.isdir() or entry.isfile():
+                continue
+            source = entry
+            seen = set()
+            while source.issym() or source.islnk():
+                if source.name in seen or len(seen) >= 16:
+                    raise ValueError("Cyclic Python archive link")
+                seen.add(source.name)
+                if source.linkname.startswith("/") or "\\" in source.linkname:
+                    raise ValueError("Unsafe Python archive link")
+                base = list(checked_components(source.name)[:-1]) if source.issym() else []
+                for part in source.linkname.split("/"):
+                    if part == "..":
+                        if len(base) <= 1:
+                            raise ValueError("Python archive link escapes its root")
+                        base.pop()
+                    elif part not in ("", "."):
+                        base.extend(checked_components(part))
+                source = members["/".join(base)]
+            if not source.isfile():
+                raise ValueError("Python archive link is not a regular file")
+            path = destination.joinpath(*checked_components(name))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("xb") as output, destination.joinpath(*checked_components(source.name)).open("rb") as stream:
+                shutil.copyfileobj(stream, output)
+            path.chmod(0o755 if source.mode & 0o111 else 0o644)
 
 
 def inventory(root: Path) -> list[dict]:
@@ -157,6 +228,7 @@ def write_notice_index(root: Path, assets: dict, cache: Path) -> None:
     obligations associated with LGPL and other vendor components.
     """
     packages = []
+    site_packages = "python/Lib/site-packages" if assets["target"] == TARGET else "python/lib/site-packages"
     for wheel in assets["wheels"]:
         with zipfile.ZipFile(cache / wheel["filename"]) as archive:
             metadata_name = next(name for name in archive.namelist() if name.endswith(".dist-info/METADATA"))
@@ -168,7 +240,7 @@ def write_notice_index(root: Path, assets: dict, cache: Path) -> None:
                 parts = checked_components(name)
                 if parts[0].endswith(".data"):
                     raise ValueError("Review relocated wheel license paths before packaging")
-                path = root / "python/Lib/site-packages" / name
+                path = root / site_packages / name
                 if not path.is_file() or path.is_symlink() or path.read_bytes() != archive.read(name):
                     raise ValueError("Upstream license text was not preserved verbatim")
                 texts.append({"path": path.relative_to(root).as_posix(), "sha256": sha256_file(path), "bytes": path.stat().st_size})
@@ -184,29 +256,37 @@ def write_notice_index(root: Path, assets: dict, cache: Path) -> None:
                              "upstream_wheel_url": wheel["url"], "wheel_sha256": wheel["sha256"],
                              "license_expression": metadata.get("License-Expression"),
                              "license_classifiers": [value for value in metadata.get_all("Classifier", []) if value.startswith("License ::")],
-                             "metadata_path": "python/Lib/site-packages/" + metadata_name,
+                             "metadata_path": site_packages + "/" + metadata_name,
                              "retained_texts": texts})
-    notice_index = {"schema": 1, "target": TARGET, "packages": packages,
+    notice_index = {"schema": 1, "target": assets["target"], "packages": packages,
                     "scope": "Verbatim upstream runtime license and notice texts; native-component source/relinking compliance needs separate review",
-                    "python_license": "python/LICENSE.txt", "model_notices": ["notices/" + row["filename"] for row in assets["notices"] if row["filename"].startswith("MODEL-")]}
+                    "python_license": "python/LICENSE.txt" if assets["target"] == TARGET else "python/lib/python3.12/LICENSE.txt",
+                    "model_notices": ["notices/" + row["filename"] for row in assets["notices"] if row["filename"].startswith("MODEL-")]}
     (root / "notices/DEPENDENCIES.json").write_text(json.dumps(notice_index, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def check_bundle(root: Path) -> dict:
     manifest = json.loads((root / "bundle.json").read_text(encoding="utf-8"))
-    if manifest.get("schema") != 1 or manifest.get("target") != TARGET or manifest.get("files") != inventory(root):
+    assets = json.loads((root / "assets.json").read_text(encoding="utf-8"))
+    if manifest.get("schema") != 1 or manifest.get("target") != assets["target"] or manifest.get("files") != inventory(root):
         raise ValueError("Bundle inventory mismatch")
-    require_x64_assets(json.loads((root / "assets.json").read_text(encoding="utf-8")))
+    require_target_assets(assets)
     return manifest
 
 
-def assemble(cache: Path, destination: Path, source: Path = SOURCE, offline: bool = False) -> dict:
+def assemble(cache: Path, destination: Path, source: Path = SOURCE, offline: bool = False,
+             target: str = TARGET) -> dict:
     if destination.exists():
         raise FileExistsError("Choose a new bundle directory; existing files will not be replaced")
-    assets = json.loads((source / "assets.json").read_text(encoding="utf-8"))
+    lock_path = source / ("assets.json" if target == TARGET else f"assets-{target}.json")
+    assets = json.loads(lock_path.read_text(encoding="utf-8"))
     if assets.get("schema") != 1:
         raise ValueError("Unsupported asset schema")
-    require_x64_assets(assets)
+    if assets.get("target") != target:
+        raise ValueError("Runtime lock target mismatch")
+    if assets.get("model") != json.loads((source / "assets.json").read_text(encoding="utf-8"))["model"]:
+        raise ValueError("Runtime lock must retain the shared model pin")
+    require_target_assets(assets)
     required = [assets["python"], *assets["wheels"], *assets["notices"]]
     cache.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(max_workers=6) as pool:
@@ -217,28 +297,53 @@ def assemble(cache: Path, destination: Path, source: Path = SOURCE, offline: boo
             raise FileNotFoundError(f"Missing integration source: {name}")
     destination.mkdir(parents=True, exist_ok=False)
     interpreter = destination / "python"
-    interpreter.mkdir()
-    extract_zip(cache / assets["python"]["filename"], interpreter)
-    pth_name = "python" + "".join(assets["python"]["version"].split(".")[:2])
-    # No `import site`, registry, PYTHONPATH, user site or executable .pth hooks.
-    (interpreter / (pth_name + "._pth")).write_text(
-        pth_name + ".zip\n.\nLib/site-packages\n", encoding="utf-8", newline="\n")
+    if target == TARGET:
+        interpreter.mkdir()
+        extract_zip(cache / assets["python"]["filename"], interpreter)
+        pth_name = "python" + "".join(assets["python"]["version"].split(".")[:2])
+        # No `import site`, registry, PYTHONPATH, user site or executable .pth hooks.
+        (interpreter / (pth_name + "._pth")).write_text(
+            pth_name + ".zip\n.\nLib/site-packages\n", encoding="utf-8", newline="\n")
+    else:
+        extract_python_tar(cache / assets["python"]["filename"], destination)
     for wheel in assets["wheels"]:
-        extract_zip(cache / wheel["filename"], interpreter, wheel=True)
+        extract_zip(cache / wheel["filename"], interpreter, wheel=True, target=target)
+    if target != TARGET:
+        # Keep the same wheel/notices layout while isolating Python's search path.
+        (interpreter / "bin/python3.12._pth").write_text(
+            "../lib/python312.zip\n../lib/python3.12\n../lib/python3.12/lib-dynload\n../lib/site-packages\n",
+            encoding="utf-8", newline="\n")
     omitted = omit_link_inputs(destination)
-    for name in ("bridge.py", "install_model.py", "assets.json", "NOTICES.md"):
+    for name in ("bridge.py", "install_model.py", "NOTICES.md"):
         copy_integration_text(source / name, destination / name)
+    copy_integration_text(lock_path, destination / "assets.json")
     notices = destination / "notices"
     notices.mkdir()
     for row in assets["notices"]:
         shutil.copyfile(cache / row["filename"], notices / row["filename"])
+    if target != TARGET:
+        receipt = json.loads((source / f"python-notices-{target}.json").read_text(encoding="utf-8"))
+        pin = next(row for row in assets["notices"] if row["filename"] == receipt["archive"]["filename"])
+        if pin != receipt["archive"]:
+            raise ValueError("Python retained archive receipt mismatch")
+        for row in receipt["files"]:
+            data = base64.b64decode(row["base64"], validate=True)
+            if len(data) != row["bytes"] or hashlib.sha256(data).hexdigest() != row["sha256"]:
+                raise ValueError("Python retained license text mismatch")
+            path = notices / "python" / Path(*checked_components(row["path"]))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("xb") as stream:
+                stream.write(data)
+        copy_integration_text(source / f"python-notices-{target}.json", notices / "PYTHON-ARCHIVE.json")
     app_license = source.parents[1] / "LICENSE"
     if app_license.is_file():
         copy_integration_text(app_license, notices / "APPLICATION-LICENSE")
     write_notice_index(destination, assets, cache)
-    manifest = {"schema": 1, "target": TARGET, "files": inventory(destination), "omitted": omitted,
+    manifest = {"schema": 1, "target": target, "files": inventory(destination), "omitted": omitted,
                 "runtime_version": "0.2.15", "python_version": assets["python"]["version"],
                 "contains_model_weights": False}
+    if target != TARGET:
+        manifest["interpreter"] = "python/bin/python3.12"
     (destination / "bundle.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
     check_bundle(destination)
     return manifest
@@ -292,12 +397,13 @@ def main() -> None:
     parser.add_argument("--verify", action="store_true")
     parser.add_argument("--offline", action="store_true", help="Require already verified cached assets; prohibit network")
     parser.add_argument("--owner-pid", type=int, help="Exit if the owning application exits")
+    parser.add_argument("--target", choices=[TARGET, *UNIX_TARGETS], default=TARGET)
     args = parser.parse_args()
     if args.offline:
         sys.addaudithook(prohibit_network)
     if args.owner_pid is not None:
         watch_owner(args.owner_pid)
-    manifest = check_bundle(args.output) if args.verify else assemble(args.cache, args.output, offline=args.offline)
+    manifest = check_bundle(args.output) if args.verify else assemble(args.cache, args.output, offline=args.offline, target=args.target)
     print(json.dumps({"manifest_sha256": sha256_file(args.output / "bundle.json"),
                       "files": len(manifest["files"]),
                       "payload_bytes": sum(row["bytes"] for row in manifest["files"]),

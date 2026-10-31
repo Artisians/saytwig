@@ -1,8 +1,8 @@
-//! Explicit Windows x64 first-run setup from immutable upstream inputs.
+//! Explicit first-run setup from target-specific immutable upstream inputs.
 //! This module is not an updater and never replaces an existing installation.
 use crate::{
     install::publish,
-    integrity::{hash_file_checked, require_supported_host},
+    integrity::{hash_file_checked, host_target, require_supported_host},
     Cancellation, RuntimeBundle,
 };
 use anyhow::{ensure, Context, Result};
@@ -23,10 +23,8 @@ use std::{
 // An adjacent mutable manifest/digest is never promoted to this trust anchor.
 pub const MANAGED_RUNTIME_SHA256: &str =
     "291c56eed6455f85b2f4a57e00d74925c058e2bff593f79fdd69969f59fea83c";
-const VERSION_DIRECTORY: &str = "windows-x64-291c56eed6455f85";
-const OWNER: &[u8] = b"{\"schema\":1,\"purpose\":\"saytwig-managed-runtime\",\"inventory\":\"291c56eed6455f85b2f4a57e00d74925c058e2bff593f79fdd69969f59fea83c\"}\n";
 // Canonical source-input fingerprint, reviewed separately from mutable staging.
-const SOURCE_SHA256: &str = "35ce1e4538735f06f2587f785e92eefd4790add8bc03061c6d986dc7365ed5f8";
+const SOURCE_SHA256: &str = "9d8fd12e2c12f5045e456810e87c7829848e372c8601f6f15586a6508fb5241b";
 const SOURCES: &[(&str, &[u8])] = &[
     (
         "scripts/phonon/assemble.py",
@@ -48,6 +46,38 @@ const SOURCES: &[(&str, &[u8])] = &[
         "scripts/phonon/NOTICES.md",
         include_bytes!("../../../scripts/phonon/NOTICES.md"),
     ),
+    (
+        "scripts/phonon/assets-aarch64-apple-darwin.json",
+        include_bytes!("../../../scripts/phonon/assets-aarch64-apple-darwin.json"),
+    ),
+    (
+        "scripts/phonon/assets-x86_64-apple-darwin.json",
+        include_bytes!("../../../scripts/phonon/assets-x86_64-apple-darwin.json"),
+    ),
+    (
+        "scripts/phonon/assets-aarch64-unknown-linux-gnu.json",
+        include_bytes!("../../../scripts/phonon/assets-aarch64-unknown-linux-gnu.json"),
+    ),
+    (
+        "scripts/phonon/assets-x86_64-unknown-linux-gnu.json",
+        include_bytes!("../../../scripts/phonon/assets-x86_64-unknown-linux-gnu.json"),
+    ),
+    (
+        "scripts/phonon/python-notices-aarch64-apple-darwin.json",
+        include_bytes!("../../../scripts/phonon/python-notices-aarch64-apple-darwin.json"),
+    ),
+    (
+        "scripts/phonon/python-notices-x86_64-apple-darwin.json",
+        include_bytes!("../../../scripts/phonon/python-notices-x86_64-apple-darwin.json"),
+    ),
+    (
+        "scripts/phonon/python-notices-aarch64-unknown-linux-gnu.json",
+        include_bytes!("../../../scripts/phonon/python-notices-aarch64-unknown-linux-gnu.json"),
+    ),
+    (
+        "scripts/phonon/python-notices-x86_64-unknown-linux-gnu.json",
+        include_bytes!("../../../scripts/phonon/python-notices-x86_64-unknown-linux-gnu.json"),
+    ),
     ("LICENSE", include_bytes!("../../../LICENSE")),
 ];
 const ASSETS: &[u8] = include_bytes!("../../../scripts/phonon/assets.json");
@@ -56,6 +86,96 @@ const UNPACKED_UPPER_BYTES: u64 = 1_524_568_002;
 const ARCHIVE_ENTRY_COUNT: u64 = 21_208;
 const BOOTSTRAP_BYTES: u64 = 22_640_669;
 const BOOTSTRAP_ENTRIES: usize = 34;
+
+pub(super) struct RuntimeSpec {
+    pub target: &'static str,
+    pub digest: &'static str,
+    pub directory: &'static str,
+    pub assets: &'static [u8],
+    pub bootstrap_bytes: u64,
+    pub bootstrap_entries: usize,
+    pub unpacked_bytes: u64,
+    pub archive_entries: u64,
+    pub installed_bytes: Option<u64>,
+    pub download_bytes: u64,
+}
+const WINDOWS: RuntimeSpec = RuntimeSpec {
+    target: "windows-x86_64",
+    digest: MANAGED_RUNTIME_SHA256,
+    directory: "windows-x64-291c56eed6455f85",
+    assets: ASSETS,
+    bootstrap_bytes: BOOTSTRAP_BYTES,
+    bootstrap_entries: BOOTSTRAP_ENTRIES,
+    unpacked_bytes: UNPACKED_UPPER_BYTES,
+    archive_entries: ARCHIVE_ENTRY_COUNT,
+    installed_bytes: None,
+    download_bytes: 314_446_024,
+};
+fn spec() -> Option<&'static RuntimeSpec> {
+    let target = host_target()?;
+    std::iter::once(&WINDOWS)
+        .chain(crate::runtime_targets::TARGETS)
+        .find(|spec| spec.target == target)
+}
+
+/// Installation metadata, not microphone permission or native-app acceptance.
+#[derive(Clone, Debug)]
+pub struct SetupMetadata {
+    pub target: &'static str,
+    pub runtime_download_bytes: Option<u64>,
+    pub model_download_bytes: u64,
+    pub runtime_installed_bytes: Option<u64>,
+    pub setup_peak_bytes: Option<u64>,
+    pub sources: &'static [&'static str],
+    pub prerequisites: &'static str,
+    /// Relative to the application's runtimes directory; never an absolute path.
+    pub recovery_directory: &'static str,
+}
+#[derive(Clone, Debug)]
+pub enum SetupCapability {
+    Available(SetupMetadata),
+    ManualProvisioning(&'static str),
+    UnsupportedHost(&'static str),
+}
+/// Discovery metadata only. Never downloads, creates files or starts a child.
+pub fn setup_capability() -> SetupCapability {
+    static SUPPORTED_HOST: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if !SUPPORTED_HOST.get_or_init(|| require_supported_host().is_ok()) {
+        return SetupCapability::UnsupportedHost(
+            "A native supported application target is required",
+        );
+    }
+    let Some(spec) = spec() else {
+        return SetupCapability::ManualProvisioning(
+            "No managed speech assets are pinned for this target",
+        );
+    };
+    SetupCapability::Available(SetupMetadata {
+        target: spec.target,
+        runtime_download_bytes: Some(spec.download_bytes),
+        model_download_bytes: crate::ARCHIVE_BYTES,
+        runtime_installed_bytes: spec.installed_bytes,
+        setup_peak_bytes: None,
+        sources: if spec.target == WINDOWS.target {
+            &["python.org", "PyPI", "Hugging Face"]
+        } else {
+            &[
+                "Astral python-build-standalone on GitHub",
+                "PyPI",
+                "PyTorch CPU index",
+                "Hugging Face",
+            ]
+        },
+        prerequisites: if spec.target == WINDOWS.target {
+            "Native Windows x64 with the official Microsoft Visual C++ x64 runtime"
+        } else if spec.target.contains("apple") {
+            "macOS 13 or newer; native Apple Silicon or Intel build. No automatic paste. Microphone permission is separate."
+        } else {
+            "glibc 2.28 or newer with compatible system graphics/audio libraries. No automatic paste. Microphone permission is separate."
+        },
+        recovery_directory: spec.directory,
+    })
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetupProgress {
@@ -78,10 +198,10 @@ pub enum SetupFailure {
 impl std::fmt::Display for SetupFailure {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
-            Self::UnsupportedHost => "Managed setup requires a verified native Windows x64 host",
+            Self::UnsupportedHost => "Managed setup requires a supported native application target",
             Self::InsufficientSpace => "Not enough free space to prepare local speech safely",
             Self::RecoveryRequired => "Retained runtime setup files require explicit review; nothing was replaced",
-            Self::BootstrapUnavailable => "Embedded Python could not start; check file access and the official Microsoft Visual C++ x64 prerequisite",
+            Self::BootstrapUnavailable => "Private Python could not start; check file access and the platform prerequisites in speech setup",
         })
     }
 }
@@ -107,12 +227,16 @@ impl AssetLock {
             .chain(&self.wheels)
             .chain(&self.notices)
     }
-    fn read() -> Result<Self> {
-        let lock: Self = serde_json::from_slice(ASSETS)?;
+    fn read(spec: &RuntimeSpec) -> Result<Self> {
+        let lock: Self = serde_json::from_slice(spec.assets)?;
         ensure!(
             lock.schema == 1
-                && lock.target == "windows-x86_64"
-                && lock.python.filename.ends_with("-embed-amd64.zip"),
+                && lock.target == spec.target
+                && (lock.python.filename.ends_with("-embed-amd64.zip")
+                    || lock
+                        .python
+                        .filename
+                        .ends_with(&format!("-{}-install_only.tar.gz", spec.target))),
             "Unsupported runtime asset lock"
         );
         let mut names = BTreeSet::new();
@@ -232,29 +356,34 @@ fn reject_unsafe_ancestors(path: &Path) -> Result<()> {
     }
     Ok(())
 }
-fn version_root(root: &Path) -> PathBuf {
-    root.join(VERSION_DIRECTORY)
+fn version_root(root: &Path, spec: &RuntimeSpec) -> PathBuf {
+    root.join(spec.directory)
 }
 
 /// Discovery never downloads. The caller may use an explicit development bundle
 /// instead. Full pre-execution verification still occurs in the speech actor.
 pub fn managed_runtime(root: &Path) -> Result<Option<RuntimeBundle>> {
-    if !cfg!(windows) {
+    let Some(spec) = spec() else {
         return Ok(None);
-    }
+    };
     require_supported_host()?;
     verify_sources()?;
     reject_unsafe_ancestors(root)?;
-    let path = version_root(root).join("bundle");
+    let path = version_root(root, spec).join("bundle");
     reject_unsafe_ancestors(&path)?;
     match fs::symlink_metadata(&path) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error.into()),
-        Ok(_) => RuntimeBundle::open(path, MANAGED_RUNTIME_SHA256).map(Some),
+        Ok(_) => RuntimeBundle::open(path, spec.digest).map(Some),
     }
 }
 
-fn open_store(root: &Path) -> Result<File> {
+fn open_store(root: &Path, spec: &RuntimeSpec) -> Result<File> {
+    let owner_record = format!(
+        "{{\"schema\":1,\"purpose\":\"saytwig-managed-runtime\",\"inventory\":\"{}\"}}\n",
+        spec.digest
+    );
+    let expected_owner = owner_record.as_bytes();
     match fs::symlink_metadata(root) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => fs::create_dir_all(root)?,
         Err(error) => return Err(error.into()),
@@ -271,15 +400,18 @@ fn open_store(root: &Path) -> Result<File> {
             .create_new(true)
             .write(true)
             .open(&owner)?;
-        file.write_all(OWNER)?;
+        file.write_all(expected_owner)?;
         file.sync_all()?;
     }
     regular(&owner)?.context("Missing runtime ownership record")?;
-    let mut marker = Vec::with_capacity(OWNER.len() + 1);
+    let mut marker = Vec::with_capacity(expected_owner.len() + 1);
     File::open(&owner)?
-        .take(OWNER.len() as u64 + 1)
+        .take(expected_owner.len() as u64 + 1)
         .read_to_end(&mut marker)?;
-    ensure!(marker == OWNER, "Unrecognized runtime ownership record");
+    ensure!(
+        marker == expected_owner,
+        "Unrecognized runtime ownership record"
+    );
     let lock = root.join("installation.lock");
     regular(&lock)?;
     let lease = OpenOptions::new()
@@ -335,7 +467,7 @@ fn prepare_cache(cache: &Path, lock: &AssetLock) -> Result<()> {
     }
     Ok(())
 }
-fn check_space(root: &Path, lock: &AssetLock, cache: &Path) -> Result<()> {
+fn check_space(root: &Path, lock: &AssetLock, cache: &Path, spec: &RuntimeSpec) -> Result<()> {
     let mut remaining = 0u64;
     for asset in lock.all() {
         if regular(&cache_path(cache, asset, false))?.is_none() {
@@ -352,11 +484,11 @@ fn check_space(root: &Path, lock: &AssetLock, cache: &Path) -> Result<()> {
     // Free-space checks are advisory: every subsequent write remains fallible.
     let allocation = fs2::allocation_granularity(root)?;
     let overhead = allocation
-        .checked_mul(ARCHIVE_ENTRY_COUNT * 2 + BOOTSTRAP_ENTRIES as u64 + 128)
+        .checked_mul(spec.archive_entries * 2 + spec.bootstrap_entries as u64 + 128)
         .context("Filesystem allocation estimate overflow")?;
     let needed = remaining
-        .checked_add(UNPACKED_UPPER_BYTES)
-        .and_then(|n| n.checked_add(BOOTSTRAP_BYTES))
+        .checked_add(spec.unpacked_bytes)
+        .and_then(|n| n.checked_add(spec.bootstrap_bytes))
         .and_then(|n| n.checked_add(overhead))
         .context("Runtime size overflow")?;
     ensure!(
@@ -528,7 +660,7 @@ impl Drop for OwnedChild {
         let _ = self.0.wait();
     }
 }
-fn assemble(stage: &Path, cache: &Path, cancel: &Setup<'_>) -> Result<PathBuf> {
+fn assemble(stage: &Path, cache: &Path, cancel: &Setup<'_>, spec: &RuntimeSpec) -> Result<PathBuf> {
     let source = stage.join("source");
     for (name, bytes) in SOURCES {
         let path = source.join(name);
@@ -539,7 +671,11 @@ fn assemble(stage: &Path, cache: &Path, cancel: &Setup<'_>) -> Result<PathBuf> {
         file.write_all(&canonical_source(bytes))?;
     }
     let output = stage.join("bundle");
-    let python = stage.join("python/python.exe");
+    let python = stage.join(if spec.target == WINDOWS.target {
+        "python/python.exe"
+    } else {
+        "bootstrap/python/bin/python3.12"
+    });
     let mut command = Command::new(&python);
     command
         .args(["-I", "-B"])
@@ -549,6 +685,8 @@ fn assemble(stage: &Path, cache: &Path, cancel: &Setup<'_>) -> Result<PathBuf> {
         .arg("--output")
         .arg(&output)
         .arg("--offline")
+        .arg("--target")
+        .arg(spec.target)
         .arg("--owner-pid")
         .arg(std::process::id().to_string())
         .current_dir(stage)
@@ -600,7 +738,7 @@ pub fn install_runtime_requested(
     cancel: &Cancellation,
     progress: impl Fn(SetupProgress),
 ) -> Result<RuntimeBundle> {
-    ensure!(cfg!(windows), SetupFailure::UnsupportedHost);
+    let spec = spec().ok_or(SetupFailure::UnsupportedHost)?;
     require_supported_host().map_err(|_| SetupFailure::UnsupportedHost)?;
     verify_sources()?;
     let setup = Setup {
@@ -610,21 +748,20 @@ pub fn install_runtime_requested(
     let cancel = &setup;
     check(cancel)?;
     reject_unsafe_ancestors(root)?;
-    let root = version_root(root);
-    let _lease = open_store(&root)?;
+    let root = version_root(root, spec);
+    let _lease = open_store(&root, spec)?;
     let root = root.canonicalize()?;
     let target = root.join("bundle");
     match fs::symlink_metadata(&target) {
         Ok(_) => {
-            let bundle =
-                RuntimeBundle::open_checked(&target, MANAGED_RUNTIME_SHA256, &|| check(cancel))?;
+            let bundle = RuntimeBundle::open_checked(&target, spec.digest, &|| check(cancel))?;
             progress(SetupProgress::Ready);
             return Ok(bundle);
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(error.into()),
     }
-    let lock = AssetLock::read()?;
+    let lock = AssetLock::read(spec)?;
     let cache = root.join("downloads");
     prepare_cache(&cache, &lock)?;
     let stage = root.join(".preparing");
@@ -634,7 +771,7 @@ pub fn install_runtime_requested(
         matches!(fs::symlink_metadata(&stage), Err(error) if error.kind() == std::io::ErrorKind::NotFound),
         SetupFailure::RecoveryRequired
     );
-    check_space(&root, &lock, &cache)?;
+    check_space(&root, &lock, &cache, spec)?;
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
@@ -658,7 +795,7 @@ pub fn install_runtime_requested(
     })?;
     check(cancel)?;
     // Recheck after potentially long downloads and concurrent disk use.
-    check_space(&root, &lock, &cache)?;
+    check_space(&root, &lock, &cache, spec)?;
     fs::create_dir(&stage)?;
     let staging = Staging(stage);
     progress(SetupProgress::Preparing);
@@ -667,14 +804,24 @@ pub fn install_runtime_requested(
         verified_asset(&bootstrap, &lock.python, cancel)?,
         "Pinned Python bootstrap changed before extraction"
     );
-    extract_bootstrap(&bootstrap, &staging.0.join("python"), cancel)?;
-    let output = assemble(&staging.0, &cache, cancel)?;
+    if spec.target == WINDOWS.target {
+        extract_bootstrap(&bootstrap, &staging.0.join("python"), cancel)?;
+    } else {
+        crate::runtime_archive::extract(
+            &bootstrap,
+            &staging.0.join("bootstrap"),
+            spec.bootstrap_entries,
+            spec.bootstrap_bytes,
+            &|| check(cancel),
+        )?;
+    }
+    let output = assemble(&staging.0, &cache, cancel, spec)?;
     progress(SetupProgress::Verifying);
     check(cancel)?;
-    RuntimeBundle::open_checked(&output, MANAGED_RUNTIME_SHA256, &|| check(cancel))?;
+    RuntimeBundle::open_checked(&output, spec.digest, &|| check(cancel))?;
     check(cancel)?;
     publish(&output, &target)?;
-    let bundle = RuntimeBundle::open_checked(&target, MANAGED_RUNTIME_SHA256, &|| Ok(()))?;
+    let bundle = RuntimeBundle::open_checked(&target, spec.digest, &|| Ok(()))?;
     // Successful installation no longer needs compressed cache duplicates. Only
     // exact pinned regular files are removed; changed/unrecognized data stays.
     for asset in lock.all() {
